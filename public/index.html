@@ -67,35 +67,34 @@
     .meta-info { font-size:10px; color:#666; display:block; margin-top:4px; }
     .checklist-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:150px; overflow-y:auto; padding:10px; background:#000; border-radius:6px; border:1px solid #333; margin-bottom:10px; }
     
-    /* --- CORRECCIÓN PDF (TINTA NEGRA FORZADA) --- */
+    /* --- CORRECCIÓN PDF: VISIBLE ON TOP --- */
     .pdf-container { 
+        display: none; /* Oculto normalmente */
         position: fixed; 
-        left: -9999px; top: 0; /* Fuera de pantalla pero renderizable */
-        width: 800px; 
+        top: 0; left: 0; 
+        width: 100%; height: 100%; 
         background: white !important; 
         color: black !important; 
         padding: 40px; 
         font-family: 'Helvetica', sans-serif; 
-        z-index: 999999;
+        z-index: 2147483647; /* Máxima prioridad: Encima de todo */
+        overflow-y: auto;
+        box-sizing: border-box;
     }
     
-    /* Forzar color negro a TODOS los elementos dentro del PDF */
-    .pdf-container * {
-        color: black !important;
-        border-color: #ddd !important;
-    }
-
+    /* Forzar colores de tinta */
+    .pdf-container * { color: black !important; border-color: #000 !important; }
     .pdf-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000 !important; padding-bottom: 10px; }
     .pdf-logo { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
-    .pdf-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top:10px; }
-    .pdf-table th { background: #eee !important; color: #000 !important; padding: 5px; text-align: left; border-bottom: 1px solid #000 !important; font-weight: bold; }
-    .pdf-table td { border-bottom: 1px solid #ddd !important; padding: 5px; }
+    .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px; }
+    .pdf-table th { background: #eee !important; padding: 8px; text-align: left; border-bottom: 2px solid #000 !important; font-weight: bold; }
+    .pdf-table td { border-bottom: 1px solid #ccc !important; padding: 8px; }
     
-    /* Colores específicos para PDF que sean legibles en papel */
-    .ingreso-txt-pdf { color: #166534 !important; font-weight: bold; } /* Verde oscuro */
-    .gasto-txt-pdf { color: #991b1b !important; font-weight: bold; }   /* Rojo oscuro */
-    .arqueo-total { font-size: 20px; font-weight: bold; text-align: right; margin-top: 20px; border-top: 2px solid #000 !important; padding-top: 10px; }
+    .ingreso-txt-pdf { color: #166534 !important; } /* Verde oscuro */
+    .gasto-txt-pdf { color: #991b1b !important; }   /* Rojo oscuro */
+    .arqueo-total { font-size: 24px; font-weight: bold; text-align: right; margin-top: 30px; border-top: 3px solid #000 !important; padding-top: 10px; }
 
+    .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
     @media (max-width: 1200px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } .admin-container { flex-direction: column; } .admin-sidebar { width:100%; flex-direction:row; overflow-x:auto; } }
 </style>
 </head>
@@ -104,36 +103,45 @@
 <div id="reporte-imprimible" class="pdf-container">
     <div class="pdf-header">
         <div class="pdf-logo">ERP CTRFAM</div>
-        <div class="pdf-sub">Reporte Financiero Ejecutivo</div>
-        <div class="pdf-sub" id="pdf-fecha"></div>
-        <div class="pdf-sub" id="pdf-usuario"></div>
+        <div class="pdf-sub">REPORTE FINANCIERO EJECUTIVO</div>
+        <div style="font-size:12px; margin-top:5px;" id="pdf-fecha"></div>
+        <div style="font-size:12px;" id="pdf-usuario"></div>
     </div>
-    <div style="display:flex; gap:20px; margin-bottom:30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
-        <div style="flex:1; text-align:center;"><h3>Ingresos</h3><div class="val ingreso-txt-pdf" id="pdf-ing" style="font-size:18px;"></div></div>
-        <div style="flex:1; text-align:center;"><h3>Gastos</h3><div class="val gasto-txt-pdf" id="pdf-gas" style="font-size:18px;"></div></div>
-        <div style="flex:1; text-align:center;"><h3>Neto</h3><div class="val" id="pdf-net" style="font-size:18px; font-weight:bold;"></div></div>
+    
+    <div style="display:flex; gap:20px; margin-bottom:30px; border: 1px solid #000; padding: 20px;">
+        <div style="flex:1; text-align:center;"><h3>Ingresos</h3><div class="val ingreso-txt-pdf" id="pdf-ing" style="font-size:20px;"></div></div>
+        <div style="flex:1; text-align:center; border-left:1px solid #000; border-right:1px solid #000;"><h3>Gastos</h3><div class="val gasto-txt-pdf" id="pdf-gas" style="font-size:20px;"></div></div>
+        <div style="flex:1; text-align:center;"><h3>Utilidad Neta</h3><div class="val" id="pdf-net" style="font-size:20px; font-weight:bold;"></div></div>
     </div>
-    <h4 style="margin:0;">Detalle de Movimientos</h4>
+
+    <h3 style="border-bottom: 2px solid #000;">Detalle de Movimientos</h3>
     <table class="pdf-table">
-        <thead><tr><th>Fecha</th><th>Descripción</th><th>Categ</th><th>Monto</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Monto</th></tr></thead>
         <tbody id="pdf-tabla-body"></tbody>
     </table>
-    <div style="margin-top: 30px; font-size: 10px; color: #777 !important; text-align: center;">Documento generado automáticamente. Confidencial.</div>
+    <br><center><small>Documento generado electrónicamente. Confidencial.</small></center>
 </div>
 
 <div id="arqueo-imprimible" class="pdf-container">
     <div class="pdf-header">
         <div class="pdf-logo">CORTE DE CAJA</div>
-        <div class="pdf-sub" id="arq-fecha"></div>
-        <div class="pdf-sub" id="arq-usuario"></div>
+        <div class="pdf-sub">ACTA DE ARQUEO</div>
+        <div style="font-size:12px; margin-top:5px;" id="arq-fecha"></div>
+        <div style="font-size:12px;" id="arq-usuario"></div>
     </div>
+    
     <table class="pdf-table">
-        <thead><tr><th>Cuenta</th><th style="text-align:right;">Saldo</th></tr></thead>
+        <thead><tr><th>Cuenta / Caja</th><th style="text-align:right;">Saldo Registrado</th></tr></thead>
         <tbody id="arq-tabla-body"></tbody>
     </table>
+    
     <div class="arqueo-total" id="arq-total"></div>
-    <br><br><br>
-    <div style="text-align:center; width: 200px; margin: 0 auto; border-top: 1px solid #000 !important; padding-top: 5px;">Firma de Responsable</div>
+    
+    <br><br><br><br>
+    <div style="display:flex; justify-content:space-around; margin-top:50px;">
+        <div style="text-align:center; width: 40%; border-top: 1px solid #000; padding-top: 5px;">Firma Responsable</div>
+        <div style="text-align:center; width: 40%; border-top: 1px solid #000; padding-top: 5px;">Firma Supervisor</div>
+    </div>
 </div>
 
 <div id="login-overlay" style="display:flex;">
@@ -251,11 +259,11 @@ function renderAll(){
 }
 
 function renderMovs(movs) {
-    $('listMovs').innerHTML=movs.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:12px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
+    $('listMovs').innerHTML=movs.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
 
-// --- ADMIN MODULAR LOGIC ---
+// ADMIN UI
 function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCats(); }
 function switchTab(tabId) {
     document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
@@ -264,8 +272,6 @@ function switchTab(tabId) {
     const btns = document.querySelectorAll('.admin-tab-btn');
     if(tabId==='tab-personal') btns[0].classList.add('active'); if(tabId==='tab-proyectos') btns[1].classList.add('active'); if(tabId==='tab-categorias') btns[2].classList.add('active'); if(tabId==='tab-sistema') btns[3].classList.add('active');
 }
-
-// 1. USUARIOS
 async function cargarUsuariosUI(){
     const r=await fetch('/api/usuarios'); ALL_USERS=await r.json();
     $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join('');
@@ -281,8 +287,6 @@ async function guardarUsuario(){
     await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})});
     $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI();
 }
-
-// 2. PROYECTOS
 function cargarProyectosAdmin() {
     $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join('');
     $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn btn-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join('');
@@ -298,8 +302,6 @@ async function guardarActivoFull() {
     await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})});
     $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin);
 }
-
-// 3. CATEGORIAS
 function renderCats(){ 
     $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');
     $('listaCats').innerHTML=DATA.categorias.map(c=>`<li><span>${c.nombre} <small>(${c.tipo})</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); 
@@ -307,34 +309,44 @@ function renderCats(){
 async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
 async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
 
-// PDF LOGIC (FIXED)
+// --- PDF ENGINE ---
 function descargarPDF() {
     if(!REPORT_CACHE)return alert("Carga el reporte primero");
-    $('pdf-fecha').innerText="Fecha: "+new Date().toLocaleDateString(); $('pdf-usuario').innerText="Usuario: "+CURRENT_USER;
+    // Llenar datos
+    $('pdf-fecha').innerText="Fecha: "+new Date().toLocaleDateString(); $('pdf-usuario').innerText="Solicitante: "+CURRENT_USER;
     $('pdf-ing').innerText=fmtMoney(REPORT_CACHE.ingresos); $('pdf-gas').innerText=fmtMoney(REPORT_CACHE.gastos); $('pdf-net').innerText=fmtMoney(REPORT_CACHE.neto);
     $('pdf-tabla-body').innerHTML=REPORT_CACHE.detalles.map(m=>`<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion}</td><td>${m.categoria||'-'}</td><td>${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');
     
-    // Configuración robusta para PDF
+    // VISIBLE FLASH
     const element = document.getElementById('reporte-imprimible');
+    element.style.display = 'block'; // Hacerlo visible
+    
     const opt = { margin: 10, filename: `Reporte_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     
-    html2pdf().set(opt).from(element).save();
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = 'none'; // Ocultar después
+    });
 }
 
 function guardarArqueoYPDF() {
     let t=0,d=[]; document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{const s=parseFloat(k.value);t+=s;d.push({cuenta:k.dataset.n,saldo:s});}); if(!d.length)return alert("Selecciona cuentas");
     fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total:t,detalles:d})});
     
-    $('arq-fecha').innerText="Fecha: "+new Date().toLocaleString(); $('arq-usuario').innerText=CURRENT_USER; $('arq-total').innerText="TOTAL: "+fmtMoney(t); 
+    $('arq-fecha').innerText="Fecha: "+new Date().toLocaleString(); $('arq-usuario').innerText="Responsable: "+CURRENT_USER; $('arq-total').innerText="TOTAL: "+fmtMoney(t); 
     $('arq-tabla-body').innerHTML=d.map(x=>`<tr><td>${x.cuenta}</td><td style="text-align:right;">${fmtMoney(x.saldo)}</td></tr>`).join('');
     
     const element = document.getElementById('arqueo-imprimible');
+    element.style.display = 'block';
+    
     const opt = { margin: 10, filename: `Corte_Caja_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     
-    html2pdf().set(opt).from(element).save().then(() => { $('arqueo-overlay').style.display='none'; });
+    html2pdf().set(opt).from(element).save().then(() => { 
+        element.style.display = 'none'; 
+        $('arqueo-overlay').style.display='none'; 
+    });
 }
 
-// REST OF LOGIC (UNCHANGED)
+// RESTO
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
