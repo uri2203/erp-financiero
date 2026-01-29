@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v10.0 (Cuadre Pro) Conectado");
+        console.log("✅ ERP v11.0 (Cortes de Caja) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -51,10 +51,22 @@ const MovimientoSchema = new mongoose.Schema({
     creado_por: { type: String, default: 'Sistema' } 
 });
 
+// NUEVO: Modelo para guardar los Cortes de Caja
+const ArqueoSchema = new mongoose.Schema({
+    fecha: { type: Date, default: Date.now },
+    usuario: String,
+    total: Number,
+    detalles: [{ // Guardamos qué cuentas se sumaron y cuánto tenían
+        cuenta: String,
+        saldo: Number
+    }]
+});
+
 const Cuenta = mongoose.model('Cuenta', CuentaSchema);
 const Activo = mongoose.model('Activo', ActivoSchema);
 const Movimiento = mongoose.model('Movimiento', MovimientoSchema);
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
+const Arqueo = mongoose.model('Arqueo', ArqueoSchema);
 
 async function inicializarAdmin() {
     await Usuario.findOneAndUpdate(
@@ -108,42 +120,29 @@ app.get('/api/data', async (req, res) => {
     catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CRUD CUENTAS
+// CRUD CUENTAS & PROYECTOS
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
-
-// CRUD PROYECTOS (VITAL PARA ASIGNAR CUENTAS)
-app.post('/api/activos', async (req, res) => { 
-    try { await Activo.create({ nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } 
-    catch (e) { res.status(500).json({error:"err"}); }
-});
-app.put('/api/activos/:id', async (req, res) => { 
-    try { await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } 
-    catch(e){ res.status(500).json({error:"err"}); }
-});
+app.post('/api/activos', async (req, res) => { try { await Activo.create({ nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
+app.put('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-// USUARIOS
+// GESTIÓN DE USUARIOS
 app.get('/api/usuarios', async (req, res) => { 
-    // Populate profundo para mostrar nombres de cuentas en el admin
-    const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos')
-        .populate({
-            path: 'proyectos_permitidos',
-            populate: { path: 'cuentas_asociadas', model: 'Cuenta' }
-        }); 
+    const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre'); 
     res.json(users); 
 });
 app.post('/api/usuarios', async (req, res) => {
-    try { await Usuario.create(req.body); res.json({ success: true }); } catch (e) { res.status(500).json({ error: "Error" }); }
+    const { user, pass, nombre_completo, proyectos } = req.body;
+    try { await Usuario.create({ user, pass, nombre_completo, proyectos_permitidos: proyectos, es_admin: false }); res.json({ success: true }); } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 app.put('/api/usuarios/:id', async (req, res) => {
     const { user, pass, nombre_completo, proyectos } = req.body;
     try {
         const updateData = { user, nombre_completo, proyectos_permitidos: proyectos };
         if(pass && pass.trim() !== "") updateData.pass = pass;
-        await Usuario.findByIdAndUpdate(req.params.id, updateData);
-        res.json({ success: true });
+        await Usuario.findByIdAndUpdate(req.params.id, updateData); res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Error" }); }
 });
 app.delete('/api/usuarios/:id', async (req, res) => { try { await Usuario.findByIdAndDelete(req.params.id); res.json({ success: true }); } catch (e) { res.status(500).json({ error: "Error" }); }});
@@ -152,8 +151,7 @@ app.delete('/api/usuarios/:id', async (req, res) => { try { await Usuario.findBy
 app.post('/api/traspaso', async (req, res) => {
     const { origen_id, destino_id, monto, descripcion, usuario_actual, activo_id } = req.body;
     if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Faltan datos" });
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const session = await mongoose.startSession(); session.startTransaction();
     try {
         const m = Math.abs(parseFloat(monto));
         await Movimiento.create([{ descripcion: `➡️ TRASPASO A: ${descripcion||'Otra'}`, monto: -m, cuenta_id: origen_id, activo_id, tipo: 'traspaso_salida', creado_por: usuario_actual }], { session });
@@ -174,6 +172,14 @@ app.post('/api/movimiento', async (req, res) => {
         if (activo_id) await Activo.findByIdAndUpdate(activo_id, { $inc: { balance_total: m } }, { session });
         await session.commitTransaction(); res.json({ success: true });
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error" }); } finally { session.endSession(); }
+});
+
+// NUEVO: GUARDAR ARQUEO
+app.post('/api/arqueo', async (req, res) => {
+    try {
+        await Arqueo.create(req.body);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: "Error guardando arqueo" }); }
 });
 
 // REPORTES
@@ -215,4 +221,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP v10.0 Cuadre en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v11.0 Cortes en ${PORT}`));
