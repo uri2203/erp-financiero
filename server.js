@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v7.0 (PDF Pro) Conectado");
+        console.log("✅ ERP v8.0 (Traspasos) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -46,7 +46,8 @@ const MovimientoSchema = new mongoose.Schema({
     monto: Number,
     cuenta_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cuenta' },
     activo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Activo' },
-    tipo: { type: String, enum: ['ingreso', 'gasto'] },
+    // NUEVO: Tipos para traspasos
+    tipo: { type: String, enum: ['ingreso', 'gasto', 'traspaso_salida', 'traspaso_entrada'] },
     estado: { type: String, default: 'finalizado', enum: ['finalizado', 'pendiente_reembolso', 'reembolsado'] },
     creado_por: { type: String, default: 'Sistema' } 
 });
@@ -104,13 +105,11 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/data', async (req, res) => {
-    try {
-        const data = await obtenerDatosSeguros(req.query.user);
-        res.json(data);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    try { const data = await obtenerDatosSeguros(req.query.user); res.json(data); } 
+    catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CRUD 
+// CRUD BASICO
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
@@ -118,10 +117,7 @@ app.post('/api/activos', async (req, res) => { try { await Activo.create({ nombr
 app.put('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-app.get('/api/usuarios', async (req, res) => {
-    const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre');
-    res.json(users);
-});
+app.get('/api/usuarios', async (req, res) => { const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre'); res.json(users); });
 app.post('/api/usuarios', async (req, res) => {
     const { user, pass, nombre_completo, proyectos, action, id } = req.body;
     try {
@@ -129,6 +125,46 @@ app.post('/api/usuarios', async (req, res) => {
         else if (action === 'borrar') await Usuario.findByIdAndDelete(id);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
+});
+
+// NUEVO: TRASPASO ENTRE CUENTAS
+app.post('/api/traspaso', async (req, res) => {
+    const { origen_id, destino_id, monto, descripcion, usuario_actual } = req.body;
+    
+    if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Datos incompletos" });
+    if(origen_id === destino_id) return res.status(400).json({ error: "Origen y destino iguales" });
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const montoNum = Math.abs(parseFloat(monto));
+
+        // 1. Salida de Origen
+        await Movimiento.create([{ 
+            descripcion: `➡️ TRASPASO A: ${descripcion || 'Otra cuenta'}`, 
+            monto: -montoNum, 
+            cuenta_id: origen_id, 
+            tipo: 'traspaso_salida', 
+            creado_por: usuario_actual 
+        }], { session });
+        await Cuenta.findByIdAndUpdate(origen_id, { $inc: { saldo: -montoNum } }, { session });
+
+        // 2. Entrada a Destino
+        await Movimiento.create([{ 
+            descripcion: `⬅️ RECIBIDO DE: ${descripcion || 'Otra cuenta'}`, 
+            monto: montoNum, 
+            cuenta_id: destino_id, 
+            tipo: 'traspaso_entrada', 
+            creado_por: usuario_actual 
+        }], { session });
+        await Cuenta.findByIdAndUpdate(destino_id, { $inc: { saldo: montoNum } }, { session });
+
+        await session.commitTransaction();
+        res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        res.status(500).json({ error: "Error en traspaso" });
+    } finally { session.endSession(); }
 });
 
 app.post('/api/movimiento', async (req, res) => {
@@ -146,16 +182,13 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
 });
 
-// --- REPORTES PRO (CON DETALLE) ---
+// REPORTES (FILTRANDO TRASPASOS)
 app.post('/api/reporte', async (req, res) => {
     const { mes, anio, activo_id, user } = req.body;
-    
     const usuarioDB = await Usuario.findOne({ user });
     if (!usuarioDB) return res.status(403).json({ error: "No autorizado" });
 
     let filtro = {};
-
-    // 1. Fecha
     if (mes !== 'todos') {
         const start = new Date(anio, parseInt(mes), 1);
         const end = new Date(anio, parseInt(mes) + 1, 0, 23, 59, 59);
@@ -166,7 +199,6 @@ app.post('/api/reporte', async (req, res) => {
         filtro.fecha = { $gte: start, $lte: end };
     }
 
-    // 2. Seguridad Proyecto
     if (usuarioDB.es_admin) {
         if (activo_id !== 'todos') filtro.activo_id = activo_id;
     } else {
@@ -179,18 +211,18 @@ app.post('/api/reporte', async (req, res) => {
     }
 
     try {
-        // AHORA TRAEMOS TODOS LOS MOVIMIENTOS DETALLADOS
         const movs = await Movimiento.find(filtro).sort({ fecha: 1 })
             .populate('activo_id', 'nombre')
             .populate('cuenta_id', 'nombre');
 
         let ingresos = 0; let gastos = 0;
         movs.forEach(m => {
+            // IGNORAR TRASPASOS EN EL REPORTE DE UTILIDADES
             if(m.tipo === 'ingreso' || m.estado === 'reembolsado') ingresos += Math.abs(m.monto);
             if(m.tipo === 'gasto' && m.estado !== 'reembolsado') gastos += Math.abs(m.monto);
+            // 'traspaso_entrada' y 'traspaso_salida' no se suman aquí
         });
         
-        // Enviamos detalles para la tabla del PDF
         res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length, detalles: movs });
     } catch (e) { res.status(500).json({ error: "Error reporte" }); }
 });
@@ -212,4 +244,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP v7.0 PDF en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v8.0 Traspasos en ${PORT}`));
