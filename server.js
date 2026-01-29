@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v8.0 (Traspasos) Conectado");
+        console.log("✅ ERP v8.1 (Traspasos Full) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -46,7 +46,6 @@ const MovimientoSchema = new mongoose.Schema({
     monto: Number,
     cuenta_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cuenta' },
     activo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Activo' },
-    // NUEVO: Tipos para traspasos
     tipo: { type: String, enum: ['ingreso', 'gasto', 'traspaso_salida', 'traspaso_entrada'] },
     estado: { type: String, default: 'finalizado', enum: ['finalizado', 'pendiente_reembolso', 'reembolsado'] },
     creado_por: { type: String, default: 'Sistema' } 
@@ -127,9 +126,9 @@ app.post('/api/usuarios', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
 });
 
-// NUEVO: TRASPASO ENTRE CUENTAS
+// TRASPASO ENTRE CUENTAS (CORREGIDO: RECIBE PROYECTO)
 app.post('/api/traspaso', async (req, res) => {
-    const { origen_id, destino_id, monto, descripcion, usuario_actual } = req.body;
+    const { origen_id, destino_id, monto, descripcion, usuario_actual, activo_id } = req.body;
     
     if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Datos incompletos" });
     if(origen_id === destino_id) return res.status(400).json({ error: "Origen y destino iguales" });
@@ -144,6 +143,7 @@ app.post('/api/traspaso', async (req, res) => {
             descripcion: `➡️ TRASPASO A: ${descripcion || 'Otra cuenta'}`, 
             monto: -montoNum, 
             cuenta_id: origen_id, 
+            activo_id: activo_id || null, // Guardamos el proyecto
             tipo: 'traspaso_salida', 
             creado_por: usuario_actual 
         }], { session });
@@ -154,6 +154,7 @@ app.post('/api/traspaso', async (req, res) => {
             descripcion: `⬅️ RECIBIDO DE: ${descripcion || 'Otra cuenta'}`, 
             monto: montoNum, 
             cuenta_id: destino_id, 
+            activo_id: activo_id || null, // Guardamos el proyecto
             tipo: 'traspaso_entrada', 
             creado_por: usuario_actual 
         }], { session });
@@ -182,7 +183,7 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
 });
 
-// REPORTES (FILTRANDO TRASPASOS)
+// REPORTES
 app.post('/api/reporte', async (req, res) => {
     const { mes, anio, activo_id, user } = req.body;
     const usuarioDB = await Usuario.findOne({ user });
@@ -217,10 +218,8 @@ app.post('/api/reporte', async (req, res) => {
 
         let ingresos = 0; let gastos = 0;
         movs.forEach(m => {
-            // IGNORAR TRASPASOS EN EL REPORTE DE UTILIDADES
             if(m.tipo === 'ingreso' || m.estado === 'reembolsado') ingresos += Math.abs(m.monto);
             if(m.tipo === 'gasto' && m.estado !== 'reembolsado') gastos += Math.abs(m.monto);
-            // 'traspaso_entrada' y 'traspaso_salida' no se suman aquí
         });
         
         res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length, detalles: movs });
@@ -244,4 +243,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP v8.0 Traspasos en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v8.1 Traspasos Fix en ${PORT}`));
