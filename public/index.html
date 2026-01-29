@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ERP Financiero | Master Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    :root { --bg:#050505; --card:#111; --text:#fff; --gray:#888; --green:#00e676; --red:#ff1744; --blue:#2979ff; --gold:#ffd700; --border:#222; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
+    
+    /* LAYOUT */
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .grid { display:grid; grid-template-columns: 300px 1fr 350px; gap:20px; height:100%; overflow:hidden; }
+    
+    /* TARJETAS */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:15px; display:flex; flex-direction:column; overflow:hidden; }
+    h2 { font-size:14px; color:var(--gray); text-transform:uppercase; letter-spacing:1px; margin:0 0 15px 0; border-bottom:1px solid var(--border); padding-bottom:10px; }
+    
+    /* DINERO Y TOTALES */
+    .big-number { font-size:32px; font-weight:800; color:var(--text); letter-spacing:-1px; }
+    .label { font-size:12px; color:var(--gray); margin-top:5px; }
+    
+    /* LISTAS */
+    ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
+    li { display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #222; transition:0.2s; }
+    li:hover { background:#1a1a1a; }
+    .li-icon { font-size:18px; margin-right:10px; width:30px; text-align:center; }
+    .li-info { flex:1; }
+    .li-title { font-size:13px; font-weight:600; display:block; }
+    .li-sub { font-size:11px; color:var(--gray); }
+    .li-amount { font-weight:bold; font-size:13px; }
+    .pos { color:var(--green); } .neg { color:var(--red); }
+    
+    /* BOTONES */
+    .btn { border:none; padding:12px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px; transition:0.2s; width:100%; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .btn-green { background:var(--green); color:#000; } .btn-green:hover { background:#00c853; }
+    .btn-red { background:rgba(255,23,68,0.15); color:var(--red); border:1px solid var(--red); } .btn-red:hover { background:var(--red); color:#fff; }
+    .btn-blue { background:rgba(41,121,255,0.15); color:var(--blue); border:1px solid var(--blue); } .btn-blue:hover { background:var(--blue); color:#fff; }
+
+    /* MODAL */
+    #modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99; display:none; justify-content:center; align-items:center; backdrop-filter:blur(5px); }
+    .modal-box { background:#151515; border:1px solid #333; width:400px; padding:25px; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.5); }
+    input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:6px; margin-bottom:15px; font-family:'Inter'; box-sizing:border-box; }
+    .form-row { display:flex; gap:10px; }
+    
+    /* RESPONSIVE */
+    @media (max-width: 1000px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div>
+        <div style="font-size:12px; color:var(--gray); font-weight:600;">PATRIMONIO NETO TOTAL</div>
+        <div class="big-number" id="totalPatrimonio">$0.00</div>
+    </div>
+    <div style="display:flex; gap:10px;">
+        <button class="btn btn-green" style="width:auto; padding:10px 20px;" onclick="openModal('ingreso')">⬆ INGRESAR</button>
+        <button class="btn btn-red" style="width:auto; padding:10px 20px;" onclick="openModal('gasto')">⬇ GASTAR</button>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h2>🏦 Mis Cuentas</h2>
+        <div id="listCuentas"></div>
+        <button class="btn btn-blue" onclick="crearCuenta()">+ Nueva Cuenta</button>
+    </div>
+
+    <div class="card">
+        <h2>🚀 Activos & Proyectos</h2>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;" id="gridActivos"></div>
+        <div style="flex:1; border-top:1px solid #222; padding-top:10px;">
+            <canvas id="chartActivos"></canvas>
+        </div>
+        <button class="btn btn-blue" onclick="crearActivo()">+ Nuevo Proyecto</button>
+    </div>
+
+    <div class="card">
+        <h2>📝 Movimientos</h2>
+        <ul id="listMovs"></ul>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="modal-box">
+        <h2 id="modalTitle" style="color:var(--text); border:none;">Registrar</h2>
+        
+        <label class="label">Descripción</label>
+        <input type="text" id="desc" placeholder="Ej: Pago Cliente, Cena...">
+        
+        <div class="form-row">
+            <div style="flex:1">
+                <label class="label">Monto ($)</label>
+                <input type="number" id="monto" placeholder="0.00">
+            </div>
+            <div style="flex:1">
+                 <label class="label">Tipo</label>
+                 <input type="text" id="tipoTxt" readonly style="color:#888; border-color:#222;">
+            </div>
+        </div>
+
+        <label class="label">Cuenta Afectada</label>
+        <select id="selCuenta"></select>
+
+        <label class="label">Proyecto Relacionado (Opcional)</label>
+        <select id="selActivo">
+            <option value="">-- Personal / Ninguno --</option>
+        </select>
+
+        <div class="form-row" style="margin-top:20px;">
+            <button class="btn btn-green" onclick="guardarMovimiento()">GUARDAR</button>
+            <button class="btn btn-red" onclick="closeModal()">CANCELAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let DATA = { cuentas:[], activos:[], movimientos:[] };
+let currentTipo = 'ingreso';
+
+// --- INICIO ---
+async function loadData() {
+    try {
+        const res = await fetch('/api/data');
+        DATA = await res.json();
+        renderAll();
+    } catch(e) { console.error("Error cargando"); }
+}
+
+function renderAll() {
+    // 1. Patrimonio
+    $('totalPatrimonio').innerText = fmtMoney(DATA.patrimonio);
+
+    // 2. Cuentas
+    $('listCuentas').innerHTML = DATA.cuentas.map(c => `
+        <div style="background:#1a1a1a; padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">${c.icono}</span>
+                <div>
+                    <div style="font-weight:600; font-size:14px;">${c.nombre}</div>
+                    <div style="font-size:11px; color:#666;">${c.tipo}</div>
+                </div>
+            </div>
+            <div style="font-weight:bold; color:var(--text);">${fmtMoney(c.saldo)}</div>
+        </div>
+    `).join('');
+
+    // 3. Activos
+    $('gridActivos').innerHTML = DATA.activos.map(a => `
+        <div style="background:#151515; border:1px solid #333; padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:#888; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.icono} ${a.nombre}</div>
+            <div style="font-size:15px; font-weight:bold; color:${a.balance_total>=0?'var(--green)':'var(--red)'}">
+                ${fmtMoney(a.balance_total)}
+            </div>
+        </div>
+    `).join('');
+
+    // 4. Historial
+    $('listMovs').innerHTML = DATA.movimientos.map(m => `
+        <li>
+            <div style="display:flex; align-items:center;">
+                <div class="li-icon" style="color:${m.tipo=='ingreso'?'var(--green)':'var(--red)'}">${m.tipo=='ingreso'?'⬇':'⬆'}</div>
+                <div class="li-info">
+                    <span class="li-title">${m.descripcion}</span>
+                    <span class="li-sub">${m.cuenta_id ? m.cuenta_id.nombre : 'Cuenta'} ${m.activo_id ? '• ' + m.activo_id.nombre : ''}</span>
+                </div>
+            </div>
+            <span class="li-amount ${m.tipo=='ingreso'?'pos':'neg'}">
+                ${m.tipo=='ingreso' ? '+' : '-'}${fmtMoney(Math.abs(m.monto))}
+            </span>
+        </li>
+    `).join('');
+
+    updateChart();
+    populateSelects();
+}
+
+// --- ACCIONES ---
+async function guardarMovimiento() {
+    const desc = $('desc').value;
+    const monto = parseFloat($('monto').value);
+    const cuenta_id = $('selCuenta').value;
+    const activo_id = $('selActivo').value || null;
+
+    if(!desc || !monto || !cuenta_id) return alert("Faltan datos");
+
+    try {
+        await fetch('/api/movimiento', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ descripcion:desc, monto, cuenta_id, activo_id, tipo:currentTipo })
+        });
+        closeModal();
+        loadData();
+    } catch(e) { alert("Error guardando"); }
+}
+
+async function crearCuenta() {
+    const nom = prompt("Nombre de la cuenta (Ej: Banco Azteca, Efectivo):");
+    if(nom) {
+        await fetch('/api/cuentas', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre:nom, icono:'💳'}) });
+        loadData();
+    }
+}
+
+async function crearActivo() {
+    const nom = prompt("Nombre del Proyecto (Ej: Yayika, YouTube, ML):");
+    if(nom) {
+        await fetch('/api/activos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre:nom, icono:'🚀'}) });
+        loadData();
+    }
+}
+
+// --- UTILIDADES ---
+const fmtMoney = num => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+function openModal(tipo) {
+    if(DATA.cuentas.length === 0) return alert("Primero crea una CUENTA (Botón azul +)");
+    currentTipo = tipo;
+    $('modal').style.display = 'flex';
+    $('modalTitle').innerText = tipo === 'ingreso' ? 'Registrar Ingreso 🤑' : 'Registrar Gasto 💸';
+    $('tipoTxt').value = tipo.toUpperCase();
+    $('desc').value = ''; $('monto').value = '';
+}
+function closeModal() { $('modal').style.display = 'none'; }
+
+function populateSelects() {
+    $('selCuenta').innerHTML = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
+    $('selActivo').innerHTML = `<option value="">-- Personal (Sin Proyecto) --</option>` + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
+}
+
+let chartRef;
+function updateChart() {
+    const ctx = $('chartActivos').getContext('2d');
+    if(chartRef) chartRef.destroy();
+    
+    // Solo graficar activos con dinero
+    const activosActivos = DATA.activos.filter(a => a.balance_total > 0);
+    const labels = activosActivos.length ? activosActivos.map(a => a.nombre) : ['Sin datos'];
+    const data = activosActivos.length ? activosActivos.map(a => a.balance_total) : [1];
+    const colors = ['#00e676', '#2979ff', '#ff1744', '#ffd700', '#aa00ff'];
+
+    chartRef = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: activosActivos.length ? colors : ['#222'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color:'#fff', boxWidth:10, font:{size:10} } } }
+        }
+    });
+}
+
+window.onload = loadData;
+</script>
+</body>
+</html>
