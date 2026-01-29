@@ -12,22 +12,15 @@
     :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
-    /* MODALS - CORREGIDO: CENTRADO ABSOLUTO */
+    /* MODALS - POSICIONAMIENTO ABSOLUTO FIXED */
     #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay, #traspaso-overlay, #modal { 
-        position:fixed; 
-        top:0; left:0; 
-        width:100vw; height:100vh; 
-        background:rgba(0,0,0,0.85); 
-        backdrop-filter:blur(5px); 
-        z-index:99999; 
-        display:none; /* Oculto por defecto */
-        justify-content:center; 
-        align-items:center; 
+        position:fixed; top:0; left:0; width:100%; height:100%; 
+        background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); z-index:99999; 
+        display:none; justify-content:center; align-items:center; 
     }
     
-    /* CAJAS DE MODAL */
     .login-box { width:300px; text-align:center; }
-    .admin-box, .reporte-box, .proyecto-box, .modal-box { width:95%; max-width:600px; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; max-height:90vh; overflow-y:auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .admin-box, .reporte-box, .proyecto-box, .modal-box { width:95%; max-width:600px; max-height:90vh; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; overflow-y:auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
     .reporte-box { max-width:900px; }
     
     .login-input { width:100%; padding:15px; background:#222; border:1px solid #333; color:#fff; margin-bottom:10px; border-radius:8px; font-size:16px; text-align:center; outline:none; transition:0.3s; }
@@ -122,13 +115,13 @@
             <button class="btn btn-red btn-small" onclick="$('admin-overlay').style.display='none'">CERRAR</button>
         </div>
         <div style="background:#222; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid #333;">
-            <h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);">NUEVO COLABORADOR</h3>
-            <input type="text" id="new_fullname" placeholder="Nombre Completo">
+            <h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);" id="userModalTitle">NUEVO COLABORADOR</h3>
+            <input type="hidden" id="userIdEdit"> <input type="text" id="new_fullname" placeholder="Nombre Completo">
             <input type="text" id="new_user" placeholder="Usuario">
-            <input type="text" id="new_pass" placeholder="Contraseña">
+            <input type="text" id="new_pass" placeholder="Contraseña (Dejar en blanco si no cambia)">
             <div style="font-size:12px; margin-bottom:10px; color:#aaa;">Proyectos Permitidos:</div>
             <div id="checklistProyectos" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;"></div>
-            <button class="btn btn-blue" style="width:100%" onclick="guardarUsuario()">GUARDAR USUARIO</button>
+            <button class="btn btn-blue" style="width:100%" onclick="guardarUsuario()">GUARDAR CAMBIOS</button>
         </div>
         <div style="flex:1;"><h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);">EQUIPO ACTUAL</h3><ul id="listaUsuarios"></ul></div>
     </div>
@@ -151,19 +144,12 @@
         <h2 style="color:#fff; border:none; margin-bottom:20px;">Transferencia entre Cuentas</h2>
         <label style="font-size:12px; color:#aaa;">Monto a transferir ($)</label>
         <input type="number" id="trasMonto" placeholder="0.00">
-        
-        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label>
-        <select id="trasOrigen"></select>
-        
-        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label>
-        <select id="trasDestino"></select>
-        
-        <label style="font-size:12px; color:#aaa;">Proyecto Asociado</label>
-        <select id="trasProyecto"></select> <label style="font-size:12px; color:#aaa;">Nota / Referencia</label>
-        <input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
-
+        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label><select id="trasOrigen"></select>
+        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label><select id="trasDestino"></select>
+        <label style="font-size:12px; color:#aaa;">Proyecto Asociado</label><select id="trasProyecto"></select>
+        <label style="font-size:12px; color:#aaa;">Nota / Referencia</label><input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
         <div class="form-row" style="margin-top:20px;">
-            <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR TRASPASO</button>
+            <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR</button>
             <button class="btn btn-red" style="flex:1" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button>
         </div>
     </div>
@@ -242,6 +228,7 @@ let IS_ADMIN = false;
 let currentTipo = 'ingreso';
 let chartRef, reportChartRef;
 let REPORT_DATA_CACHE = null;
+let ALL_USERS = []; // Guardar usuarios para editar
 
 async function doLogin() {
     const user = $('user').value; const pass = $('pass').value;
@@ -268,13 +255,12 @@ function renderAll() {
     updateChart(); populateSelects();
 }
 
-// LOGICA TRASPASOS (CORREGIDO: SELECCION DE PROYECTO)
+// LOGICA TRASPASOS
 function abrirTraspaso() {
     $('traspaso-overlay').style.display = 'flex';
     const opts = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
     $('trasOrigen').innerHTML = opts;
     $('trasDestino').innerHTML = opts;
-    // Llenar selector de Proyectos
     $('trasProyecto').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
 }
 async function ejecutarTraspaso() {
@@ -313,10 +299,56 @@ async function borrarActivo(id){if(confirm("Borrar?"))await fetch(`/api/activos/
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function borrarCuenta(id){if(confirm("Borrar?"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
+
+// --- NUEVA GESTION DE USUARIOS (EDITAR) ---
 async function abrirAdmin(){$('admin-overlay').style.display='flex';cargarUsuariosUI();}
-async function cargarUsuariosUI(){const r=await fetch('/api/usuarios');const u=await r.json();$('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}"><span style="font-size:12px;color:#ccc;">${a.nombre}</span></div>`).join('');$('listaUsuarios').innerHTML=u.map(x=>`<li><div><strong style="color:${x.es_admin?'var(--green)':'#fff'}">${x.nombre_completo}</strong><div style="font-size:11px;color:#666;">${x.user}</div></div>${!x.es_admin?`<button class="btn btn-red btn-small" onclick="borrarUsuario('${x._id}')">ELIMINAR</button>`:''}</li>`).join('');}
-async function guardarUsuario(){const f=$('new_fullname').value,u=$('new_user').value,p=$('new_pass').value,ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);if(!u||!p)return;await fetch('/api/usuarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'crear',user:u,pass:p,nombre_completo:f,proyectos:ps})});$('new_fullname').value='';$('new_user').value='';$('new_pass').value='';cargarUsuariosUI();}
-async function borrarUsuario(id){if(confirm("Eliminar?"))await fetch('/api/usuarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'borrar',id})});cargarUsuariosUI();}
+async function cargarUsuariosUI(){
+    const r=await fetch('/api/usuarios'); ALL_USERS=await r.json();
+    $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_user_proy_${a._id}"><span style="font-size:12px;color:#ccc;">${a.nombre}</span></div>`).join('');
+    $('listaUsuarios').innerHTML=ALL_USERS.map(x=>`
+        <li style="display:flex;justify-content:space-between;align-items:center;">
+            <div><strong style="color:${x.es_admin?'var(--green)':'#fff'}">${x.nombre_completo}</strong><div style="font-size:11px;color:#666;">${x.user}</div></div>
+            <div>
+                <button class="btn btn-blue btn-small" onclick="editarUsuario('${x._id}')">✏️</button>
+                ${!x.es_admin?`<button class="btn btn-red btn-small" onclick="borrarUsuario('${x._id}')">🗑️</button>`:''}
+            </div>
+        </li>`).join('');
+}
+function editarUsuario(id){
+    const u = ALL_USERS.find(x => x._id === id);
+    if(!u) return;
+    $('userIdEdit').value = id;
+    $('userModalTitle').innerText = "EDITAR USUARIO: " + u.user;
+    $('new_fullname').value = u.nombre_completo;
+    $('new_user').value = u.user;
+    $('new_pass').value = ''; // Se deja en blanco para no cambiarla
+    // Marcar proyectos
+    const checkboxes = document.querySelectorAll('.chk-proy');
+    checkboxes.forEach(c => c.checked = false);
+    if(u.proyectos_permitidos) {
+        u.proyectos_permitidos.forEach(p => {
+            const chk = document.getElementById(`chk_user_proy_${p._id}`);
+            if(chk) chk.checked = true;
+        });
+    }
+}
+async function guardarUsuario(){
+    const id=$('userIdEdit').value; const f=$('new_fullname').value; const u=$('new_user').value; const p=$('new_pass').value;
+    const ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);
+    
+    if(!u) return alert("Usuario obligatorio");
+    const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
+    const method = id ? 'PUT' : 'POST';
+
+    await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({user:u, pass:p, nombre_completo:f, proyectos:ps})});
+    
+    // Limpiar form
+    $('userIdEdit').value=''; $('userModalTitle').innerText="NUEVO COLABORADOR"; $('new_fullname').value=''; $('new_user').value=''; $('new_pass').value='';
+    cargarUsuariosUI();
+}
+async function borrarUsuario(id){if(confirm("Eliminar?"))await fetch(`/api/usuarios/${id}`,{method:'DELETE'});cargarUsuariosUI();}
+
+// --- OTROS ---
 async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m||!c)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,usuario_actual:CURRENT_USER})});closeModal();loadData();}
 async function confirmarReembolso(id){if(!confirm("Llegó?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
