@@ -67,32 +67,31 @@
     .meta-info { font-size:10px; color:#666; display:block; margin-top:4px; }
     .checklist-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:150px; overflow-y:auto; padding:10px; background:#000; border-radius:6px; border:1px solid #333; margin-bottom:10px; }
     
-    /* --- CORRECCIÓN PDF: VISIBLE ON TOP --- */
-    .pdf-container { 
-        display: none; /* Oculto normalmente */
-        position: fixed; 
-        top: 0; left: 0; 
-        width: 100%; height: 100%; 
-        background: white !important; 
-        color: black !important; 
-        padding: 40px; 
-        font-family: 'Helvetica', sans-serif; 
-        z-index: 2147483647; /* Máxima prioridad: Encima de todo */
-        overflow-y: auto;
+    /* --- CSS CLAVE PARA EL PDF --- */
+    .pdf-hidden { display: none; }
+    
+    /* Esta clase se activa SOLO al descargar */
+    .pdf-print-mode {
+        display: block !important;
+        position: fixed !important;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: white !important; /* FONDO BLANCO FORZADO */
+        color: black !important;      /* TEXTO NEGRO FORZADO */
+        z-index: 2147483647;          /* Encima de todo */
+        padding: 40px;
         box-sizing: border-box;
+        overflow-y: auto;
     }
-    
-    /* Forzar colores de tinta */
-    .pdf-container * { color: black !important; border-color: #000 !important; }
-    .pdf-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000 !important; padding-bottom: 10px; }
-    .pdf-logo { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
-    .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top:20px; }
-    .pdf-table th { background: #eee !important; padding: 8px; text-align: left; border-bottom: 2px solid #000 !important; font-weight: bold; }
-    .pdf-table td { border-bottom: 1px solid #ccc !important; padding: 8px; }
-    
-    .ingreso-txt-pdf { color: #166534 !important; } /* Verde oscuro */
-    .gasto-txt-pdf { color: #991b1b !important; }   /* Rojo oscuro */
-    .arqueo-total { font-size: 24px; font-weight: bold; text-align: right; margin-top: 30px; border-top: 3px solid #000 !important; padding-top: 10px; }
+
+    /* Forzar estilos internos del PDF a negro/blanco */
+    .pdf-print-mode * { color: black !important; border-color: #000 !important; background: white !important; }
+    .pdf-print-mode .pdf-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000 !important; padding-bottom: 10px; }
+    .pdf-print-mode .pdf-logo { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+    .pdf-print-mode .pdf-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top:20px; }
+    .pdf-print-mode th { background: #eee !important; padding: 5px; text-align: left; border-bottom: 2px solid #000 !important; font-weight: bold; }
+    .pdf-print-mode td { border-bottom: 1px solid #ccc !important; padding: 5px; }
+    .pdf-print-mode .arqueo-total { font-size: 24px; font-weight: bold; text-align: right; margin-top: 30px; border-top: 3px solid #000 !important; padding-top: 10px; }
 
     .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
     @media (max-width: 1200px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } .admin-container { flex-direction: column; } .admin-sidebar { width:100%; flex-direction:row; overflow-x:auto; } }
@@ -100,7 +99,7 @@
 </head>
 <body>
 
-<div id="reporte-imprimible" class="pdf-container">
+<div id="reporte-imprimible" class="pdf-hidden">
     <div class="pdf-header">
         <div class="pdf-logo">ERP CTRFAM</div>
         <div class="pdf-sub">REPORTE FINANCIERO EJECUTIVO</div>
@@ -109,8 +108,8 @@
     </div>
     
     <div style="display:flex; gap:20px; margin-bottom:30px; border: 1px solid #000; padding: 20px;">
-        <div style="flex:1; text-align:center;"><h3>Ingresos</h3><div class="val ingreso-txt-pdf" id="pdf-ing" style="font-size:20px;"></div></div>
-        <div style="flex:1; text-align:center; border-left:1px solid #000; border-right:1px solid #000;"><h3>Gastos</h3><div class="val gasto-txt-pdf" id="pdf-gas" style="font-size:20px;"></div></div>
+        <div style="flex:1; text-align:center;"><h3>Ingresos</h3><div class="val" id="pdf-ing" style="font-size:20px;"></div></div>
+        <div style="flex:1; text-align:center; border-left:1px solid #000; border-right:1px solid #000;"><h3>Gastos</h3><div class="val" id="pdf-gas" style="font-size:20px;"></div></div>
         <div style="flex:1; text-align:center;"><h3>Utilidad Neta</h3><div class="val" id="pdf-net" style="font-size:20px; font-weight:bold;"></div></div>
     </div>
 
@@ -122,7 +121,7 @@
     <br><center><small>Documento generado electrónicamente. Confidencial.</small></center>
 </div>
 
-<div id="arqueo-imprimible" class="pdf-container">
+<div id="arqueo-imprimible" class="pdf-hidden">
     <div class="pdf-header">
         <div class="pdf-logo">CORTE DE CAJA</div>
         <div class="pdf-sub">ACTA DE ARQUEO</div>
@@ -263,7 +262,7 @@ function renderMovs(movs) {
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
 
-// ADMIN UI
+// ADMIN MODULAR
 function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCats(); }
 function switchTab(tabId) {
     document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
@@ -309,66 +308,36 @@ function renderCats(){
 async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
 async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
 
-// --- PDF ENGINE ---
+// --- PDF CORREGIDO (CLASE ESPECIAL) ---
 function descargarPDF() {
     if(!REPORT_CACHE)return alert("Carga el reporte primero");
-    // Llenar datos
-    $('pdf-fecha').innerText="Fecha: "+new Date().toLocaleDateString(); $('pdf-usuario').innerText="Solicitante: "+CURRENT_USER;
+    $('pdf-fecha').innerText="Fecha: "+new Date().toLocaleDateString(); $('pdf-usuario').innerText="Usuario: "+CURRENT_USER;
     $('pdf-ing').innerText=fmtMoney(REPORT_CACHE.ingresos); $('pdf-gas').innerText=fmtMoney(REPORT_CACHE.gastos); $('pdf-net').innerText=fmtMoney(REPORT_CACHE.neto);
     $('pdf-tabla-body').innerHTML=REPORT_CACHE.detalles.map(m=>`<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion}</td><td>${m.categoria||'-'}</td><td>${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');
     
-    // VISIBLE FLASH
-    const element = document.getElementById('reporte-imprimible');
-    element.style.display = 'block'; // Hacerlo visible
-    
+    // 1. Mostrar capa blanca
+    const elem = document.getElementById('reporte-imprimible');
+    elem.classList.remove('pdf-hidden');
+    elem.classList.add('pdf-print-mode');
+
+    // 2. Generar PDF
     const opt = { margin: 10, filename: `Reporte_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     
-    html2pdf().set(opt).from(element).save().then(() => {
-        element.style.display = 'none'; // Ocultar después
+    html2pdf().set(opt).from(elem).save().then(() => {
+        // 3. Ocultar capa blanca
+        elem.classList.remove('pdf-print-mode');
+        elem.classList.add('pdf-hidden');
     });
 }
 
 function guardarArqueoYPDF() {
     let t=0,d=[]; document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{const s=parseFloat(k.value);t+=s;d.push({cuenta:k.dataset.n,saldo:s});}); if(!d.length)return alert("Selecciona cuentas");
     fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total:t,detalles:d})});
-    
     $('arq-fecha').innerText="Fecha: "+new Date().toLocaleString(); $('arq-usuario').innerText="Responsable: "+CURRENT_USER; $('arq-total').innerText="TOTAL: "+fmtMoney(t); 
     $('arq-tabla-body').innerHTML=d.map(x=>`<tr><td>${x.cuenta}</td><td style="text-align:right;">${fmtMoney(x.saldo)}</td></tr>`).join('');
     
-    const element = document.getElementById('arqueo-imprimible');
-    element.style.display = 'block';
+    const elem = document.getElementById('arqueo-imprimible');
+    elem.classList.remove('pdf-hidden');
+    elem.classList.add('pdf-print-mode');
     
-    const opt = { margin: 10, filename: `Corte_Caja_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    
-    html2pdf().set(opt).from(element).save().then(() => { 
-        element.style.display = 'none'; 
-        $('arqueo-overlay').style.display='none'; 
-    });
-}
-
-// RESTO
-async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
-async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
-function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none'; filtrarCategorias(); }
-function closeModal(){$('modal').style.display='none';}
-function filtrarCategorias() { const projId = $('selActivo').value; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; }
-function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
-async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked,cat=$('selCat').value;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,categoria:cat,usuario_actual:CURRENT_USER})});closeModal();loadData();}
-async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
-function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #222;"><div style="display:flex;gap:10px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"><span>${c.nombre}</span></div><span>${fmtMoney(c.saldo)}</span></div>`).join('');calcArq();}
-function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
-function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
-async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
-async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
-async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración OK. Recargando..."); location.reload(); }catch(err){alert("Error");} }; reader.readAsText(f); }
-function abrirReportes(){$('reporte-overlay').style.display='flex';actualizarReporte();}
-function cerrarReportes(){$('reporte-overlay').style.display='none';}
-function populateFilters(){$('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
-async function actualizarReporte(){const anio=$('filtroAnio').value, mes=$('filtroMes').value, activo_id=$('filtroProyecto').value; const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER})}); const rep=await r.json(); REPORT_CACHE=rep; $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto); const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#333'}}}}}); const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy(); const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{}); repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
-function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
-const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
-</script>
-</body>
-</html>
+    const opt = { margin: 10, filename: `Corte_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality:
