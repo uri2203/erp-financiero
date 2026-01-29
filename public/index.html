@@ -3,338 +3,287 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<title>ERP CTRFAM | Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-    /* ESTILOS DEL SISTEMA (MODO OSCURO) */
-    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --border:#27272a; }
-    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+    /* --- ESTILOS "PRO" (DISEÑO OSCURO RESTAURADO) --- */
+    :root { --bg:#09090b; --card:#18181b; --sidebar:#111; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; --purple:#8b5cf6; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
-    /* LAYOUT */
-    .top-bar { display:flex; justify-content:space-between; margin-bottom:20px; background:var(--card); padding:15px; border-radius:12px; border:1px solid var(--border); }
-    .grid { display:grid; grid-template-columns: 350px 1fr 400px; gap:20px; height:100%; overflow:hidden; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; overflow:hidden; }
-    .card-header { display:flex; justify-content:space-between; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    /* MODALS */
+    #login-overlay, #admin-overlay, #reporte-overlay, #traspaso-overlay, #modal, #arqueo-overlay, #cats-overlay { 
+        position:fixed; top:0; left:0; width:100vw; height:100vh; 
+        background:rgba(0,0,0,0.9); backdrop-filter:blur(5px); z-index:99999; 
+        display:none; justify-content:center; align-items:center; 
+    }
     
-    /* ELEMENTOS */
-    input, select { background:#000; border:1px solid #333; color:#fff; padding:8px; border-radius:6px; width:100%; box-sizing:border-box; margin-bottom:10px; }
-    button { cursor:pointer; padding:8px 12px; border-radius:6px; border:none; font-weight:bold; }
-    .btn-green { background:var(--green); color:#000; }
-    .btn-red { background:rgba(239,68,68,0.2); color:var(--red); border:1px solid var(--red); }
-    .btn-blue { background:var(--blue); color:#fff; }
-    .btn-gold { background:#eab308; color:#000; }
-    
-    ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
-    li { padding:10px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center; }
-    
-    /* MODALES (Centrados y Oscuros) */
-    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:99; display:none; justify-content:center; align-items:center; }
-    .modal { background:#111; padding:25px; border-radius:15px; border:1px solid #333; width:400px; max-height:90vh; overflow-y:auto; }
-    .admin-modal { width:800px; }
-    
-    /* ADMIN TABS */
-    .admin-layout { display:flex; height:500px; gap:20px; }
-    .admin-menu { width:150px; border-right:1px solid #333; }
-    .admin-menu button { display:block; width:100%; text-align:left; background:none; color:#777; padding:10px; }
-    .admin-menu button.active { color:#fff; border-left:2px solid var(--blue); }
-    .admin-panel { flex:1; overflow-y:auto; display:none; }
-    .admin-panel.active { display:block; }
+    /* CAJAS */
+    .login-box, .modal-box { width:95%; max-width:450px; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .reporte-box { width:95%; max-width:900px; height:90vh; background:#111; border:1px solid #333; border-radius:15px; padding:20px; overflow-y:auto; }
 
-    /* ESTILO LISTAS */
-    .item-row { display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; padding:8px; margin-bottom:5px; border-radius:4px; }
+    /* ADMIN MODULAR (RESTAURADO) */
+    .admin-container { width:90%; max-width:1000px; height:85vh; background:var(--card); border:1px solid #333; border-radius:15px; display:flex; overflow:hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.8); }
+    .admin-sidebar { width:200px; background:var(--sidebar); border-right:1px solid var(--border); padding:20px 10px; display:flex; flex-direction:column; gap:5px; }
+    .admin-tab-btn { background:transparent; border:none; color:#777; padding:12px; text-align:left; cursor:pointer; border-radius:8px; font-weight:600; font-size:13px; transition:0.2s; display:flex; align-items:center; gap:10px; }
+    .admin-tab-btn:hover { background:#222; color:#fff; }
+    .admin-tab-btn.active { background:#222; color:var(--blue); border-left:3px solid var(--blue); }
+    .admin-content { flex:1; padding:30px; overflow-y:auto; background:var(--bg); }
+    .admin-section { display:none; animation: fadeIn 0.3s ease; }
+    .admin-section.active { display:block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+    .admin-form-group { background:#151515; padding:20px; border-radius:10px; border:1px solid #333; margin-bottom:20px; }
+    .admin-list { list-style:none; padding:0; margin:0; }
+    .admin-list li { display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #222; }
+
+    /* INPUTS */
+    .login-input, input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:6px; margin-bottom:10px; box-sizing:border-box; outline:none; transition:0.3s; }
+    input:focus, select:focus { border-color:var(--blue); }
+    
+    /* DASHBOARD */
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--card); padding:15px; border-radius:12px; border:1px solid var(--border); }
+    .grid { display:grid; grid-template-columns: 350px 1fr 400px; gap:20px; height:100%; overflow:hidden; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); }
+    .card-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom:15px; }
+    h2 { font-size:12px; color:var(--gray); text-transform:uppercase; margin:0; letter-spacing:1px; font-weight:700; }
+    .big-number { font-size:28px; font-weight:700; color:#fff; }
+    
+    /* BOTONES */
+    .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:12px; display:flex; justify-content:center; align-items:center; gap:8px; transition:0.2s; text-transform:uppercase; letter-spacing:0.5px; }
+    .btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
+    .btn:active { transform:translateY(1px); }
+    .btn-green { background:var(--green); color:#000; } 
+    .btn-red { background:rgba(239, 68, 68, 0.15); color:var(--red); border:1px solid var(--red); }
+    .btn-blue { background:rgba(59, 130, 246, 0.15); color:var(--blue); border:1px solid var(--blue); }
+    .btn-cyan { background:var(--cyan); color:#000; }
+    .btn-gold { background:var(--yellow); color:#000; }
+    .btn-purple { background:var(--purple); color:#fff; }
+    .btn-small { padding:5px 10px; font-size:10px; }
+    
+    /* UTILS */
+    .editable-item { display:flex; justify-content:space-between; align-items:center; background:#222; padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid #333; }
+    .editable-actions { display:flex; gap:5px; opacity:0; transition:0.3s; }
+    .editable-item:hover .editable-actions { opacity:1; }
+    .form-row { display:flex; gap:10px; }
+    ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
+    .meta-info { font-size:10px; color:#666; display:block; margin-top:4px; }
+    .checklist-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:150px; overflow-y:auto; padding:10px; background:#000; border-radius:6px; border:1px solid #333; margin-bottom:10px; }
+    .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
+
+    /* --- PDF CONTAINER (OCULTO VISUALMENTE PERO EXISTENTE) --- */
+    .pdf-container { display: none; }
+    
+    /* CLASE MAGICA PARA IMPRIMIR (Sobrescribe todo con blanco y negro) */
+    .print-mode {
+        display: block !important;
+        position: fixed !important;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: white !important;
+        color: black !important;
+        z-index: 2147483647;
+        padding: 40px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    }
+    .print-mode * { color: black !important; border-color: #000 !important; background: transparent !important; }
+    .print-mode table { width: 100%; border-collapse: collapse; margin-top:20px; }
+    .print-mode th { border-bottom: 2px solid #000; text-align: left; padding: 5px; }
+    .print-mode td { border-bottom: 1px solid #ccc; padding: 5px; }
+    .print-mode h1, .print-mode h2, .print-mode h3 { text-align: center; margin: 10px 0; }
+
+    @media (max-width: 1200px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } .admin-container { flex-direction: column; } .admin-sidebar { width:100%; flex-direction:row; overflow-x:auto; } }
 </style>
 </head>
 <body>
 
-<div id="login-overlay" class="overlay" style="display:flex;">
-    <div class="modal" style="text-align:center;">
-        <h2>🔐 ACCESO</h2>
-        <input type="text" id="user" placeholder="Usuario"><input type="password" id="pass" placeholder="Contraseña">
-        <button class="btn-green" style="width:100%; margin-top:10px;" onclick="doLogin()">ENTRAR</button>
+<div id="pdf-reporte" class="pdf-container">
+    <h1>REPORTE FINANCIERO</h1>
+    <p style="text-align:center;" id="pdf-sub"></p>
+    <div style="display:flex; justify-content:space-between; margin:30px 0; border:1px solid #000; padding:10px;">
+        <div style="text-align:center; flex:1;"><h3>Ingresos</h3><span id="p-ing" style="font-size:20px;"></span></div>
+        <div style="text-align:center; flex:1; border-left:1px solid #000;"><h3>Gastos</h3><span id="p-gas" style="font-size:20px;"></span></div>
+        <div style="text-align:center; flex:1; border-left:1px solid #000;"><h3>Neto</h3><span id="p-net" style="font-size:20px;"></span></div>
     </div>
+    <h3>Detalle de Movimientos</h3>
+    <table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categ</th><th>Monto</th></tr></thead><tbody id="p-body"></tbody></table>
 </div>
 
-<div id="admin-overlay" class="overlay">
-    <div class="modal admin-modal">
-        <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h2>⚙️ Configuración</h2><button class="btn-red" onclick="$('admin-overlay').style.display='none'">X</button></div>
-        <div class="admin-layout">
-            <div class="admin-menu">
-                <button onclick="tab('users')" class="active">👥 Usuarios</button>
-                <button onclick="tab('proys')">🚀 Proyectos</button>
-                <button onclick="tab('cats')">🏷️ Categorías</button>
-                <button onclick="tab('sys')">💾 Sistema</button>
-            </div>
-            <div id="tab-users" class="admin-panel active">
-                <h3>Usuarios</h3>
-                <input type="hidden" id="uid"><input type="text" id="uname" placeholder="Nombre"><input type="text" id="uuser" placeholder="User"><input type="text" id="upass" placeholder="Pass">
-                <div id="u-proys" style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin:10px 0;"></div>
-                <button class="btn-blue" style="width:100%;" onclick="saveUser()">Guardar</button>
-                <div id="list-users" style="margin-top:15px;"></div>
-            </div>
-            <div id="tab-proys" class="admin-panel">
-                <h3>Proyectos</h3>
-                <input type="hidden" id="pid"><input type="text" id="pname" placeholder="Nombre Proyecto">
-                <div id="p-cuentas" style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin:10px 0;"></div>
-                <button class="btn-blue" style="width:100%;" onclick="saveProy()">Guardar</button>
-                <div id="list-proys" style="margin-top:15px;"></div>
-            </div>
-            <div id="tab-cats" class="admin-panel">
-                <h3>Categorías</h3>
-                <div style="display:flex; gap:5px;"><input id="cname" placeholder="Nombre"><select id="ctype"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-                <select id="cproy"></select>
-                <button class="btn-green" style="width:100%;" onclick="addCat()">Agregar</button>
-                <div id="list-cats" style="margin-top:15px;"></div>
-            </div>
-            <div id="tab-sys" class="admin-panel" style="text-align:center;">
-                <h3>Respaldo</h3>
-                <button class="btn-blue" onclick="downloadBackup()">Descargar Todo</button>
-                <br><br>
-                <button class="btn-red" onclick="$('restFile').click()">Restaurar</button>
-                <input type="file" id="restFile" style="display:none;" onchange="restoreBackup(this)">
-            </div>
-        </div>
-    </div>
+<div id="pdf-arqueo" class="pdf-container">
+    <h1>CORTE DE CAJA</h1>
+    <p style="text-align:center;" id="arq-sub"></p>
+    <table><thead><tr><th>Cuenta</th><th style="text-align:right;">Saldo</th></tr></thead><tbody id="arq-body"></tbody></table>
+    <h2 style="text-align:right; margin-top:30px;" id="arq-tot"></h2>
+    <br><br><br><center>__________________________<br>Firma</center>
 </div>
 
-<div id="reporte-overlay" class="overlay">
-    <div class="modal admin-modal">
-        <div style="display:flex; justify-content:space-between;"><h2>📊 Reporte</h2><div><button class="btn-gold" onclick="printReporte()">📥 PDF SIMPLE</button> <button class="btn-red" onclick="$('reporte-overlay').style.display='none'">X</button></div></div>
-        <div style="display:flex; gap:10px; margin:10px 0;">
-            <select id="f-anio" onchange="runRep()"><option value="2026">2026</option><option value="2025">2025</option></select>
-            <select id="f-mes" onchange="runRep()"><option value="todos">Todo el año</option><option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option><option value="3">Abril</option></select>
-            <select id="f-proy" onchange="runRep()"><option value="todos">Todos</option></select>
-        </div>
-        <div style="display:flex; text-align:center; gap:10px; margin-bottom:20px;">
-            <div style="flex:1; background:#222; padding:10px;">Ingresos<br><b style="color:var(--green)" id="r-ing">$0</b></div>
-            <div style="flex:1; background:#222; padding:10px;">Gastos<br><b style="color:var(--red)" id="r-gas">$0</b></div>
-            <div style="flex:1; background:#222; padding:10px;">Neto<br><b style="color:#fff" id="r-net">$0</b></div>
-        </div>
-        <div style="height:300px;"><canvas id="chartRep"></canvas></div>
-    </div>
-</div>
+<div id="login-overlay" style="display:flex;"><div class="login-box"><h2 style="border:none; color:#fff; margin-bottom:30px;">🔐 ACCESO ERP</h2><input type="text" id="user" placeholder="Usuario"><input type="password" id="pass" placeholder="Contraseña"><button class="btn btn-green" style="width:100%; margin-top:20px;" onclick="doLogin()">INICIAR SESIÓN</button></div></div>
 
-<div id="modal-mov" class="overlay"><div class="modal"><h3>Registro</h3><input id="m-desc" placeholder="Concepto"><div style="display:flex;gap:5px;"><input id="m-monto" type="number" placeholder="$"><input id="m-tipo" readonly></div><select id="m-proy" onchange="filterCats()"></select><select id="m-cat"></select><div id="div-reem" style="display:none;"><input type="checkbox" id="m-reem"> Pendiente Reembolso</div><select id="m-cta"></select><button class="btn-green" onclick="saveMov()" style="width:100%;margin-top:10px;">Guardar</button><button class="btn-red" onclick="$('modal-mov').style.display='none'" style="width:100%;margin-top:5px;">Cancelar</button></div></div>
+<div id="admin-overlay"><div class="admin-container">
+    <aside class="admin-sidebar"><h3 style="color:#fff; font-size:12px; padding-left:10px; margin-bottom:10px; opacity:0.5;">CONFIGURACIÓN</h3><button class="admin-tab-btn active" onclick="switchTab('tab-personal')">👥 Personal</button><button class="admin-tab-btn" onclick="switchTab('tab-proyectos')">🚀 Proyectos</button><button class="admin-tab-btn" onclick="switchTab('tab-categorias')">🏷️ Categorías</button><button class="admin-tab-btn" onclick="switchTab('tab-sistema')">💾 Sistema</button><div style="flex:1;"></div><button class="btn btn-red" style="width:100%;" onclick="$('admin-overlay').style.display='none'">CERRAR PANEL</button></aside>
+    <main class="admin-content">
+        <div id="tab-personal" class="admin-section active"><h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Gestión de Usuarios</h2><div class="admin-form-group"><h3 style="margin:0 0 10px 0; font-size:12px; color:var(--blue);" id="userTitle">NUEVO EMPLEADO</h3><input type="hidden" id="userIdEdit"><div class="form-row"><input type="text" id="new_fullname" placeholder="Nombre Completo"><input type="text" id="new_user" placeholder="Usuario"></div><input type="text" id="new_pass" placeholder="Contraseña"><label style="font-size:11px;color:#aaa;">Proyectos Autorizados:</label><div id="checklistProyectos" class="checklist-grid"></div><button class="btn btn-blue" style="width:100%;" onclick="guardarUsuario()">GUARDAR USUARIO</button></div><h3 style="font-size:12px; color:#aaa;">LISTA DE USUARIOS</h3><ul id="listaUsuarios" class="admin-list"></ul></div>
+        <div id="tab-proyectos" class="admin-section"><h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Gestión de Proyectos</h2><div class="admin-form-group"><h3 style="margin:0 0 10px 0; font-size:12px; color:var(--blue);" id="proyTitle">NUEVO PROYECTO</h3><input type="hidden" id="proyIdEdit"><input type="text" id="proyNombre" placeholder="Nombre del Proyecto"><label style="font-size:11px;color:var(--yellow);">Cuentas Vinculadas:</label><div id="checklistCuentasProy" class="checklist-grid"></div><button class="btn btn-blue" style="width:100%;" onclick="guardarActivoFull()">GUARDAR PROYECTO</button></div><ul id="listaProyectosAdmin" class="admin-list"></ul></div>
+        <div id="tab-categorias" class="admin-section"><h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Catálogo</h2><div class="admin-form-group"><div class="form-row"><input type="text" id="newCatName" placeholder="Nueva Categoría"><select id="newCatType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div><select id="newCatProy"></select><button class="btn btn-green" style="width:100%;" onclick="crearCat()">AGREGAR</button></div><ul id="listaCats" class="admin-list"></ul></div>
+        <div id="tab-sistema" class="admin-section"><h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Mantenimiento</h2><div class="admin-form-group" style="text-align:center;"><button class="btn btn-blue" onclick="descargarBackup()">DESCARGAR RESPALDO</button><div style="height:20px;"></div><button class="btn btn-red" onclick="$('restoreInput').click()">SUBIR RESPALDO</button><input type="file" id="restoreInput" style="display:none;" onchange="restaurarBackup(this)"></div></div>
+    </main>
+</div></div>
 
-<div id="modal-tras" class="overlay"><div class="modal"><h3>Traspaso</h3><input id="t-monto" type="number" placeholder="$"><select id="t-origen"></select><select id="t-destino"></select><select id="t-proy"></select><input id="t-desc" placeholder="Nota"><button class="btn-blue" onclick="doTras()" style="width:100%;margin-top:10px;">Confirmar</button><button class="btn-red" onclick="$('modal-tras').style.display='none'" style="width:100%;margin-top:5px;">Cancelar</button></div></div>
-
-<div id="modal-arq" class="overlay"><div class="modal"><h3>Corte Caja</h3><div id="list-arq"></div><h2 style="text-align:center;" id="t-arq">$0</h2><button class="btn-gold" onclick="printArqueo()" style="width:100%;">📄 PDF CORTE</button><button class="btn-red" onclick="$('modal-arq').style.display='none'" style="width:100%;margin-top:5px;">Cerrar</button></div></div>
+<div id="traspaso-overlay"><div class="modal-box"><h2>Transferencia</h2><label style="color:#aaa;font-size:11px;">Monto</label><input type="number" id="trasMonto"><label style="color:#aaa;font-size:11px;">Origen</label><select id="trasOrigen"></select><label style="color:#aaa;font-size:11px;">Destino</label><select id="trasDestino"></select><label style="color:#aaa;font-size:11px;">Proyecto</label><select id="trasProyecto"></select><label style="color:#aaa;font-size:11px;">Nota</label><input type="text" id="trasDesc"><div class="form-row" style="margin-top:20px;"><button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR</button><button class="btn btn-red" style="flex:1" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button></div></div></div>
+<div id="arqueo-overlay"><div class="modal-box"><h2>Corte de Caja</h2><div id="listaArqueo" style="max-height:300px;overflow-y:auto;margin-bottom:20px;"></div><div style="text-align:center;margin-bottom:20px;font-size:30px;font-weight:bold;color:var(--green);" id="totalArqueo">$0.00</div><button class="btn btn-purple" onclick="guardarArqueoYPDF()">💾 PDF CORTE</button><button class="btn btn-red" style="margin-top:10px;" onclick="$('arqueo-overlay').style.display='none'">CERRAR</button></div></div>
+<div id="reporte-overlay"><div class="reporte-box"><div style="display:flex;justify-content:space-between;margin-bottom:20px;"><h2>📊 Reportes</h2><div style="display:flex;gap:10px;"><button class="btn btn-gold" onclick="descargarPDF()">📥 PDF</button><button class="btn btn-red" onclick="cerrarReportes()">X</button></div></div><div class="filter-bar"><select id="filtroAnio" onchange="actualizarReporte()"><option value="2026">2026</option><option value="2025">2025</option></select><select id="filtroMes" onchange="actualizarReporte()"><option value="todos">Año</option><option value="0">Ene</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Abr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Ago</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dic</option></select><select id="filtroProyecto" onchange="actualizarReporte()"><option value="todos">Todos</option></select></div><div style="display:flex;gap:20px;margin-bottom:20px;text-align:center;"><div style="flex:1;"><small>INGRESOS</small><div id="repIng" style="font-size:20px;color:var(--green);font-weight:bold;"></div></div><div style="flex:1;"><small>GASTOS</small><div id="repGas" style="font-size:20px;color:var(--red);font-weight:bold;"></div></div><div style="flex:1;"><small>NETO</small><div id="repNeto" style="font-size:20px;color:#fff;font-weight:bold;"></div></div></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;"><div style="height:250px;"><canvas id="chartReporteMain"></canvas></div><div style="height:250px;"><canvas id="chartReporteCat"></canvas></div></div></div></div>
+<div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2><label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div><label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select><button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
 
 <div class="top-bar">
-    <div><small style="color:#aaa;">PATRIMONIO</small><div style="font-size:24px; font-weight:bold;" id="dash-total">...</div></div>
-    <div style="display:flex; gap:5px;">
-        <button class="btn-blue" onclick="openTras()">⇄</button>
-        <button class="btn-gold" onclick="openRep()">📊</button>
-        <button class="btn-blue" id="btn-admin" onclick="openAdmin()" style="display:none;">⚙️</button>
-        <button class="btn-green" onclick="openMov('ingreso')">⬆</button>
-        <button class="btn-red" onclick="openMov('gasto')">⬇</button>
-        <button style="background:#333; color:#fff;" onclick="location.reload()">🔓</button>
+    <div><div style="font-size:10px;color:var(--gray);text-transform:uppercase;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
+    <div style="display:flex;gap:10px;">
+        <button class="btn btn-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
+        <button class="btn btn-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
+        <button class="btn btn-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
+        <button class="btn btn-green" onclick="openModal('ingreso')">⬆ INGRESAR</button>
+        <button class="btn btn-red" onclick="openModal('gasto')">⬇ GASTAR</button>
+        <button class="btn" style="background:#333;color:#fff;" onclick="logout()">🔓</button>
     </div>
 </div>
-
+<div id="radar-alertas" style="display:none; flex-direction:column; gap:10px; margin-bottom:20px;"></div>
 <div class="grid">
-    <div class="card">
-        <div class="card-header"><b>CUENTAS</b> <div><button class="btn-gold" style="font-size:10px;" onclick="openArq()">CORTE</button> <button class="btn-blue" id="btn-add-cta" style="font-size:10px; display:none;" onclick="addCta()">+</button></div></div>
-        <div id="dash-cuentas"></div>
-    </div>
-    <div class="card">
-        <div class="card-header"><b>PROYECTOS</b></div>
-        <div id="dash-proys"></div>
-    </div>
-    <div class="card">
-        <div class="card-header"><b>MOVIMIENTOS</b><input id="search" placeholder="🔍" style="width:80px; padding:2px;" onkeyup="renderMovs()"></div>
-        <ul id="dash-movs"></ul>
-    </div>
+    <div class="card"><div class="card-header"><h2>🏦 Cuentas</h2><div style="display:flex;gap:5px;"><button class="btn btn-purple btn-small" onclick="abrirArqueo()">🧮 CORTE</button><button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+</button></div></div><div id="listCuentas"></div></div>
+    <div class="card"><div class="card-header"><h2>🚀 Proyectos</h2></div><div id="gridActivos"></div>
+    <div style="flex:1;padding:10px;border-top:1px solid #333;"><canvas id="chartActivos"></canvas></div></div>
+    <div class="card"><div class="card-header"><h2>📝 Movimientos</h2><input type="text" id="searchMovs" placeholder="🔍 Buscar..." style="width:100px;padding:5px;font-size:11px;" onkeyup="filtrarMovimientos()"></div><ul id="listMovs"></ul></div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-let DATA = {}, USER = '', ADMIN = false, REP = null;
+let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[], categorias:[] };
+let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 
 // --- LOGIN ---
 async function doLogin() {
-    const u=$('user').value, p=$('pass').value;
-    const r = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({user:u,pass:p})});
-    const d = await r.json();
-    if(d.success) { USER=d.user; ADMIN=d.es_admin; $('login-overlay').style.display='none'; load(); }
-    else alert('Error');
+    const user=$('user').value, pass=$('pass').value;
+    try { const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,pass})}); const d=await r.json(); if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}else{$('loginError').style.display='block';} }catch(e){alert("Error");}
+}
+function logout(){location.reload();}
+async function loadData(){try{const r=await fetch(`/api/data?user=${CURRENT_USER}`); DATA=await r.json(); renderAll(); populateFilters();}catch(e){console.error(e);}}
+
+function renderAll(){
+    $('btnReportes').style.display='flex'; $('totalPatrimonio').innerText=fmtMoney(DATA.patrimonio);
+    if(IS_ADMIN){$('btnAdmin').style.display='flex';$('btnAddCta').style.display='block';}else{$('btnAdmin').style.display='none';$('btnAddCta').style.display='none';}
+    $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn btn-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
+    $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
+    $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="editable-item"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
+    $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="editable-item" style="background:#151515;"><div style="flex:1;"><div style="font-size:11px;color:#888;">${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div></div>`).join('');
+    renderMovs(DATA.movimientos); updateChart(); populateSelects();
 }
 
-async function load() {
-    const r = await fetch(`/api/data?user=${USER}`);
-    DATA = await r.json();
-    $('dash-total').innerText = fmt(DATA.patrimonio);
+function renderMovs(movs) {
+    $('listMovs').innerHTML=movs.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
+}
+function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
+
+// --- ADMIN ---
+function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCats(); }
+function switchTab(tabId) {
+    document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-btn').forEach(el => el.classList.remove('active'));
+    $(tabId).classList.add('active');
+    const btns = document.querySelectorAll('.admin-tab-btn');
+    if(tabId==='tab-personal') btns[0].classList.add('active'); if(tabId==='tab-proyectos') btns[1].classList.add('active'); if(tabId==='tab-categorias') btns[2].classList.add('active'); if(tabId==='tab-sistema') btns[3].classList.add('active');
+}
+async function cargarUsuariosUI(){
+    const r=await fetch('/api/usuarios'); ALL_USERS=await r.json();
+    $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join('');
+    $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small style="color:#666;">${u.proyectos_permitidos.length} Proyectos</small></div><button class="btn btn-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join('');
+}
+function editarUsuario(id){
+    const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false);
+    if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; });
+}
+async function guardarUsuario(){
+    const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);
+    if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST';
+    await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})});
+    $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI();
+}
+function cargarProyectosAdmin() {
+    $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join('');
+    $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn btn-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join('');
+}
+function editarProyecto(id) {
+    const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre;
+    document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false);
+    if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; });
+}
+async function guardarActivoFull() {
+    const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value);
+    if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST';
+    await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})});
+    $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin);
+}
+function renderCats(){ 
+    $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');
+    $('listaCats').innerHTML=DATA.categorias.map(c=>`<li><span>${c.nombre} <small>(${c.tipo})</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); 
+}
+async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
+async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
+
+// --- PDF FUNCTIONALITY (FLASH WHITE MODE) ---
+function descargarPDF() {
+    if(!REPORT_CACHE)return alert("Carga reporte");
+    $('pdf-sub').innerText="Fecha: "+new Date().toLocaleDateString()+" | Usuario: "+CURRENT_USER;
+    $('p-ing').innerText=fmtMoney(REPORT_CACHE.ingresos); $('p-gas').innerText=fmtMoney(REPORT_CACHE.gastos); $('p-net').innerText=fmtMoney(REPORT_CACHE.neto);
+    $('p-body').innerHTML=REPORT_CACHE.detalles.map(m=>`<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion}</td><td>${m.categoria||'-'}</td><td>${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');
     
-    // Renders
-    $('dash-cuentas').innerHTML = DATA.cuentas.map(c=>`<div class="item-row"><span>${c.nombre}</span><b>${fmt(c.saldo)}</b></div>`).join('');
-    $('dash-proys').innerHTML = DATA.activos.map(p=>`<div class="item-row"><span>${p.nombre}</span><b style="color:${p.balance_total>=0?'lime':'red'}">${fmt(p.balance_total)}</b></div>`).join('');
-    renderMovs();
-
-    // Permisos
-    if(ADMIN) { $('btn-admin').style.display='block'; $('btn-add-cta').style.display='block'; }
+    // Activar modo impresión
+    const e = document.getElementById('pdf-reporte');
+    e.classList.add('print-mode');
     
-    // Selects generales
-    const ctasOpts = DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');
-    const proyOpts = DATA.activos.map(p=>`<option value="${p._id}">${p.nombre}</option>`).join('');
-    $('m-cta').innerHTML=ctasOpts; $('m-proy').innerHTML=proyOpts; 
-    $('t-origen').innerHTML=ctasOpts; $('t-destino').innerHTML=ctasOpts; $('t-proy').innerHTML=proyOpts;
-    $('f-proy').innerHTML='<option value="todos">Todos</option>'+proyOpts;
-}
-
-function renderMovs() {
-    const q = $('search').value.toLowerCase();
-    const list = DATA.movimientos.filter(m=> JSON.stringify(m).toLowerCase().includes(q));
-    $('dash-movs').innerHTML = list.map(m=>`<li style="font-size:12px;"><div><b>${m.descripcion}</b><br><span style="color:#777">${m.categoria||'-'}</span></div><span style="color:${m.tipo=='ingreso'?'lime':'red'}">${fmt(m.monto)}</span></li>`).join('');
-}
-
-// --- PDF SIMPLE (GENERACIÓN DIRECTA) ---
-function printReporte() {
-    if(!REP) return alert("Carga datos primero");
-    
-    // 1. Crear el HTML "imprimible" en memoria (Texto Negro sobre Blanco forzado)
-    const content = `
-        <div style="font-family:Helvetica; padding:40px; color:black; background:white;">
-            <h1 style="text-align:center; border-bottom:2px solid black;">REPORTE FINANCIERO</h1>
-            <p><b>Fecha:</b> ${new Date().toLocaleDateString()} <br> <b>Usuario:</b> ${USER}</p>
-            <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-                <tr style="background:#eee; border-bottom:1px solid black;">
-                    <th style="padding:10px; text-align:left;">INGRESOS</th>
-                    <th style="padding:10px; text-align:left;">GASTOS</th>
-                    <th style="padding:10px; text-align:left;">NETO</th>
-                </tr>
-                <tr>
-                    <td style="padding:10px; font-size:20px;">${fmt(REP.ingresos)}</td>
-                    <td style="padding:10px; font-size:20px;">${fmt(REP.gastos)}</td>
-                    <td style="padding:10px; font-size:20px;">${fmt(REP.neto)}</td>
-                </tr>
-            </table>
-            <h3 style="margin-top:30px; border-bottom:1px solid black;">DETALLE</h3>
-            <table style="width:100%; font-size:12px; border-collapse:collapse;">
-                <tr style="background:#eee;"><th style="padding:5px; text-align:left;">Fecha</th><th style="padding:5px; text-align:left;">Desc</th><th style="padding:5px; text-align:left;">Monto</th></tr>
-                ${REP.detalles.map(m=>`<tr>
-                    <td style="padding:5px; border-bottom:1px solid #ccc;">${new Date(m.fecha).toLocaleDateString()}</td>
-                    <td style="padding:5px; border-bottom:1px solid #ccc;">${m.descripcion} <small>(${m.categoria})</small></td>
-                    <td style="padding:5px; border-bottom:1px solid #ccc;">${fmt(Math.abs(m.monto))}</td>
-                </tr>`).join('')}
-            </table>
-        </div>
-    `;
-
-    // 2. Generar PDF usando ese HTML limpio
-    html2pdf().from(content, 'string').set({ margin:10, filename:'Reporte.pdf' }).save();
-}
-
-function printArqueo() {
-    let t=0, htmlRows='';
-    document.querySelectorAll('.chk-arq:checked').forEach(c => {
-        t += parseFloat(c.value);
-        htmlRows += `<tr><td style="padding:5px; border-bottom:1px solid #ccc;">${c.dataset.n}</td><td style="padding:5px; text-align:right; border-bottom:1px solid #ccc;">${fmt(c.value)}</td></tr>`;
+    html2pdf().from(e).set({ margin:10, filename:`Reporte_${new Date().toISOString().slice(0,10)}.pdf` }).save().then(()=>{
+        e.classList.remove('print-mode'); // Volver a ocultar
     });
+}
+
+function guardarArqueoYPDF() {
+    let t=0,d=[]; document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{const s=parseFloat(k.value);t+=s;d.push({cuenta:k.dataset.n,saldo:s});}); if(!d.length)return alert("Selecciona cuentas");
+    fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total:t,detalles:d})});
     
-    if(t===0) return alert("Selecciona cuentas");
-
-    const content = `
-        <div style="font-family:Helvetica; padding:40px; color:black; background:white;">
-            <h1 style="text-align:center; border-bottom:2px solid black;">CORTE DE CAJA</h1>
-            <p><b>Fecha:</b> ${new Date().toLocaleString()} <br> <b>Responsable:</b> ${USER}</p>
-            <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-                <tr style="background:#eee;"><th style="padding:10px; text-align:left;">CUENTA</th><th style="padding:10px; text-align:right;">SALDO</th></tr>
-                ${htmlRows}
-            </table>
-            <h2 style="text-align:right; margin-top:20px; border-top:2px solid black;">TOTAL: ${fmt(t)}</h2>
-            <br><br><br>
-            <center>__________________________<br>Firma de Conformidad</center>
-        </div>
-    `;
+    $('arq-sub').innerText="Fecha: "+new Date().toLocaleString()+" | Responsable: "+CURRENT_USER; $('arq-tot').innerText="TOTAL: "+fmtMoney(t); 
+    $('arq-body').innerHTML=d.map(x=>`<tr><td>${x.cuenta}</td><td style="text-align:right;">${fmtMoney(x.saldo)}</td></tr>`).join('');
     
-    // Guardar en BD (Silencioso)
-    fetch('/api/arqueo', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({usuario:USER, total:t, detalles:[]})});
+    const e = document.getElementById('pdf-arqueo');
+    e.classList.add('print-mode');
     
-    // Descargar
-    html2pdf().from(content, 'string').set({ margin:10, filename:'Corte_Caja.pdf' }).save();
+    html2pdf().from(e).set({ margin:10, filename:`Corte_${new Date().toISOString().slice(0,10)}.pdf` }).save().then(()=>{
+        e.classList.remove('print-mode');
+        $('arqueo-overlay').style.display='none';
+    });
 }
 
-// --- LOGICA DE NEGOCIO ---
-async function runRep() {
-    const a=$('f-anio').value, m=$('f-mes').value, p=$('f-proy').value;
-    const r = await fetch('/api/reporte', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({anio:a, mes:m, activo_id:p, user:USER})});
-    REP = await r.json();
-    $('r-ing').innerText=fmt(REP.ingresos); $('r-gas').innerText=fmt(REP.gastos); $('r-net').innerText=fmt(REP.neto);
-    // Chart
-    new Chart($('chartRep'), { type:'bar', data: { labels:['Ing','Gas'], datasets:[{data:[REP.ingresos, REP.gastos], backgroundColor:['#22c55e','#ef4444']}] } });
-}
-
-function openMov(t) { 
-    $('m-tipo').value=t; $('modal-mov').style.display='flex'; $('div-reem').style.display = t==='gasto'?'block':'none'; filterCats();
-}
-async function saveMov() {
-    const body = { descripcion:$('m-desc').value, monto:$('m-monto').value, tipo:$('m-tipo').value, cuenta_id:$('m-cta').value, activo_id:$('m-proy').value, categoria:$('m-cat').value, usuario_actual:USER };
-    await fetch('/api/movimiento', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    $('modal-mov').style.display='none'; load();
-}
-function filterCats() {
-    const p = $('m-proy').value;
-    const cats = DATA.categorias.filter(c => (!c.proyecto_id || c.proyecto_id._id === p) && c.tipo === $('m-tipo').value);
-    $('m-cat').innerHTML = cats.length ? cats.map(c=>`<option>${c.nombre}</option>`).join('') : '<option>General</option>';
-}
-
-function openArq() {
-    $('modal-arq').style.display='flex';
-    $('list-arq').innerHTML = DATA.cuentas.map(c=>`<div class="item-row"><input type="checkbox" class="chk-arq" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"> ${c.nombre} <b>${fmt(c.saldo)}</b></div>`).join('');
-    calcArq();
-}
-function calcArq() {
-    let t=0; document.querySelectorAll('.chk-arq:checked').forEach(c=>t+=parseFloat(c.value));
-    $('t-arq').innerText=fmt(t);
-}
-
-// ADMIN BÁSICO
-function openAdmin(){ $('admin-overlay').style.display='flex'; tab('users'); loadAdmin(); }
-function tab(t) { document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active')); $(`tab-${t}`).classList.add('active'); }
-async function loadAdmin() {
-    const r = await fetch('/api/usuarios'); const us = await r.json();
-    $('list-users').innerHTML = us.map(u=>`<div class="item-row"><b>${u.user}</b> <button class="btn-blue" onclick="editU('${u._id}')">✏️</button></div>`).join('');
-    $('list-proys').innerHTML = DATA.activos.map(p=>`<div class="item-row"><b>${p.nombre}</b> <button class="btn-blue" onclick="editP('${p._id}')">✏️</button></div>`).join('');
-    $('list-cats').innerHTML = DATA.categorias.map(c=>`<div class="item-row">${c.nombre} (${c.tipo}) <button class="btn-red" onclick="delCat('${c._id}')">X</button></div>`).join('');
-    
-    // Checklists
-    $('u-proys').innerHTML = DATA.activos.map(p=>`<label><input type="checkbox" class="chk-u-p" value="${p._id}"> ${p.nombre}</label>`).join('');
-    $('p-cuentas').innerHTML = DATA.cuentas.map(c=>`<label><input type="checkbox" class="chk-p-c" value="${c._id}"> ${c.nombre}</label>`).join('');
-    $('cproy').innerHTML = '<option value="">-- General --</option>' + DATA.activos.map(p=>`<option value="${p._id}">${p.nombre}</option>`).join('');
-}
-
-// CRUD SIMPLIFICADO
-async function saveUser() {
-    const ps = Array.from(document.querySelectorAll('.chk-u-p:checked')).map(c=>c.value);
-    const body = { user:$('uuser').value, pass:$('upass').value, nombre_completo:$('uname').value, proyectos:ps };
-    const id = $('uid').value; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/usuarios/${id}` : '/api/usuarios';
-    await fetch(u, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    loadAdmin(); $('uid').value=''; $('uuser').value='';
-}
-function editU(id) { $('uid').value=id; $('uuser').focus(); } // Simplificado para brevedad
-
-async function saveProy() {
-    const cs = Array.from(document.querySelectorAll('.chk-p-c:checked')).map(c=>c.value);
-    const body = { nombre:$('pname').value, cuentas:cs };
-    const id = $('pid').value; const m = id ? 'PUT' : 'POST'; const u = id ? `/api/activos/${id}` : '/api/activos';
-    await fetch(u, {method:m, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    loadAdmin();
-}
-function editP(id) { $('pid').value=id; $('pname').focus(); }
-
-async function addCat() { await fetch('/api/categorias', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre:$('cname').value, tipo:$('ctype').value, proyecto_id:$('cproy').value})}); loadAdmin(); }
-async function delCat(id) { if(confirm('X')) await fetch(`/api/categorias/${id}`, {method:'DELETE'}); loadAdmin(); }
-
-// UTILIDADES
-async function downloadBackup(){ const r=await fetch(`/api/backup?user=${USER}`); const d=await r.json(); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download='Backup.json'; a.click(); }
-async function restoreBackup(i){ const f=i.files[0]; const r=new FileReader(); r.onload=async(e)=>{ await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:JSON.parse(e.target.result), user:USER})}); alert('OK'); location.reload(); }; r.readAsText(f); }
-function openTras(){ $('modal-tras').style.display='flex'; }
-async function doTras(){ await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:$('t-origen').value, destino_id:$('t-destino').value, monto:$('t-monto').value, descripcion:$('t-desc').value, usuario_actual:USER, activo_id:$('t-proy').value})}); $('modal-tras').style.display='none'; load(); }
-function addCta() { const n=prompt('Nombre Cuenta'); if(n) fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})}).then(load); }
-const fmt = n => new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
-function openRep(){ $('reporte-overlay').style.display='flex'; runRep(); }
+// RESTO
+async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
+async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
+function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none'; filtrarCategorias(); }
+function closeModal(){$('modal').style.display='none';}
+function filtrarCategorias() { const projId = $('selActivo').value; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; }
+function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
+async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked,cat=$('selCat').value;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,categoria:cat,usuario_actual:CURRENT_USER})});closeModal();loadData();}
+async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
+function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #222;"><div style="display:flex;gap:10px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"><span>${c.nombre}</span></div><span>${fmtMoney(c.saldo)}</span></div>`).join('');calcArq();}
+function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
+function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
+async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
+async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración OK. Recargando..."); location.reload(); }catch(err){alert("Error");} }; reader.readAsText(f); }
+function abrirReportes(){$('reporte-overlay').style.display='flex';actualizarReporte();}
+function cerrarReportes(){$('reporte-overlay').style.display='none';}
+function populateFilters(){$('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
+async function actualizarReporte(){const anio=$('filtroAnio').value, mes=$('filtroMes').value, activo_id=$('filtroProyecto').value; const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER})}); const rep=await r.json(); REPORT_CACHE=rep; $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto); const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#333'}}}}}); const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy(); const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{}); repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
+function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
+const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
 </script>
 </body>
 </html>
