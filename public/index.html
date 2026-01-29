@@ -9,12 +9,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; }
+    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; --purple:#8b5cf6; }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
-    /* MODALS - POSICIONAMIENTO ABSOLUTO FIXED */
-    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay, #traspaso-overlay, #modal { 
-        position:fixed; top:0; left:0; width:100%; height:100%; 
+    /* MODALS */
+    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay, #traspaso-overlay, #modal, #arqueo-overlay { 
+        position:fixed; top:0; left:0; width:100vw; height:100vh; 
         background:rgba(0,0,0,0.85); backdrop-filter:blur(5px); z-index:99999; 
         display:none; justify-content:center; align-items:center; 
     }
@@ -44,6 +44,7 @@
     .btn-blue { background:rgba(59, 130, 246, 0.15); color:var(--blue); border:1px solid var(--blue); }
     .btn-cyan { background:var(--cyan); color:#000; }
     .btn-gold { background:var(--yellow); color:#000; }
+    .btn-purple { background:var(--purple); color:#fff; }
     .btn-small { padding:6px 10px; font-size:11px; }
     
     /* OTROS */
@@ -116,7 +117,8 @@
         </div>
         <div style="background:#222; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid #333;">
             <h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);" id="userModalTitle">NUEVO COLABORADOR</h3>
-            <input type="hidden" id="userIdEdit"> <input type="text" id="new_fullname" placeholder="Nombre Completo">
+            <input type="hidden" id="userIdEdit">
+            <input type="text" id="new_fullname" placeholder="Nombre Completo">
             <input type="text" id="new_user" placeholder="Usuario">
             <input type="text" id="new_pass" placeholder="Contraseña (Dejar en blanco si no cambia)">
             <div style="font-size:12px; margin-bottom:10px; color:#aaa;">Proyectos Permitidos:</div>
@@ -133,7 +135,7 @@
         <input type="hidden" id="proyIdEdit">
         <label style="font-size:12px; color:#aaa;">Nombre del Proyecto</label>
         <input type="text" id="proyNombre" placeholder="Ej. Yayika ML">
-        <label style="color:var(--yellow); font-size:12px; margin-bottom:10px; display:block;">CUENTAS VINCULADAS (Privacidad)</label>
+        <label style="color:var(--yellow); font-size:12px; margin-bottom:10px; display:block;">CUENTAS VINCULADAS (Para que el usuario las vea)</label>
         <div id="checklistCuentasProy" style="background:#222; padding:15px; border-radius:8px; display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:20px; border:1px solid #333;"></div>
         <div class="form-row"><button class="btn btn-green" style="flex:1" onclick="guardarActivoFull()">GUARDAR</button><button class="btn btn-red" style="flex:1" onclick="$('proyecto-overlay').style.display='none'">CANCELAR</button></div>
     </div>
@@ -142,16 +144,28 @@
 <div id="traspaso-overlay">
     <div class="modal-box">
         <h2 style="color:#fff; border:none; margin-bottom:20px;">Transferencia entre Cuentas</h2>
-        <label style="font-size:12px; color:#aaa;">Monto a transferir ($)</label>
-        <input type="number" id="trasMonto" placeholder="0.00">
-        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label><select id="trasOrigen"></select>
-        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label><select id="trasDestino"></select>
+        <label style="font-size:12px; color:#aaa;">Monto ($)</label><input type="number" id="trasMonto" placeholder="0.00">
+        <label style="font-size:12px; color:#aaa;">Origen (Sale)</label><select id="trasOrigen"></select>
+        <label style="font-size:12px; color:#aaa;">Destino (Entra)</label><select id="trasDestino"></select>
         <label style="font-size:12px; color:#aaa;">Proyecto Asociado</label><select id="trasProyecto"></select>
-        <label style="font-size:12px; color:#aaa;">Nota / Referencia</label><input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
+        <label style="font-size:12px; color:#aaa;">Referencia</label><input type="text" id="trasDesc" placeholder="Ej. Ganancias ML">
         <div class="form-row" style="margin-top:20px;">
             <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR</button>
             <button class="btn btn-red" style="flex:1" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button>
         </div>
+    </div>
+</div>
+
+<div id="arqueo-overlay">
+    <div class="modal-box">
+        <h2 style="color:#fff; border:none; margin-bottom:20px;">🧮 Calculadora de Arqueo</h2>
+        <div style="font-size:12px; color:#aaa; margin-bottom:15px;">Selecciona las cuentas para sumar sus saldos:</div>
+        <div id="listaArqueo" style="max-height:300px; overflow-y:auto; margin-bottom:20px;"></div>
+        <div style="background:#222; padding:15px; border-radius:10px; text-align:center; border:1px solid #444;">
+            <div style="font-size:12px; color:#aaa;">TOTAL SELECCIONADO</div>
+            <div style="font-size:30px; font-weight:bold; color:var(--green);" id="totalArqueo">$0.00</div>
+        </div>
+        <button class="btn btn-red" style="width:100%; margin-top:20px;" onclick="$('arqueo-overlay').style.display='none'">CERRAR</button>
     </div>
 </div>
 
@@ -206,7 +220,13 @@
 
 <div class="grid">
     <div class="card">
-        <div class="card-header"><h2>🏦 Cuentas</h2><button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+ CREAR</button></div>
+        <div class="card-header">
+            <h2>🏦 Cuentas</h2>
+            <div style="display:flex; gap:5px;">
+                <button class="btn btn-purple btn-small" onclick="abrirArqueo()">🧮 CUADRAR</button>
+                <button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+ CREAR</button>
+            </div>
+        </div>
         <div id="listCuentas"></div>
     </div>
     <div class="card">
@@ -228,7 +248,7 @@ let IS_ADMIN = false;
 let currentTipo = 'ingreso';
 let chartRef, reportChartRef;
 let REPORT_DATA_CACHE = null;
-let ALL_USERS = []; // Guardar usuarios para editar
+let ALL_USERS = [];
 
 async function doLogin() {
     const user = $('user').value; const pass = $('pass').value;
@@ -255,22 +275,37 @@ function renderAll() {
     updateChart(); populateSelects();
 }
 
-// LOGICA TRASPASOS
+// ARQUEO / CALCULADORA
+function abrirArqueo() {
+    $('arqueo-overlay').style.display='flex';
+    $('listaArqueo').innerHTML = DATA.cuentas.map(c => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #222;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" class="chk-arqueo" value="${c.saldo}" onchange="calcularArqueo()">
+                <span>${c.icono} ${c.nombre}</span>
+            </div>
+            <span>${fmtMoney(c.saldo)}</span>
+        </div>
+    `).join('');
+    calcularArqueo();
+}
+function calcularArqueo() {
+    let total = 0;
+    document.querySelectorAll('.chk-arqueo:checked').forEach(chk => { total += parseFloat(chk.value); });
+    $('totalArqueo').innerText = fmtMoney(total);
+}
+
+// TRASPASOS & REPORTES & CRUD (IGUAL A V9 PERO MANTENIENDO TODO FUNCIONAL)
 function abrirTraspaso() {
-    $('traspaso-overlay').style.display = 'flex';
-    const opts = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
-    $('trasOrigen').innerHTML = opts;
-    $('trasDestino').innerHTML = opts;
-    $('trasProyecto').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
+    $('traspaso-overlay').style.display = 'flex'; const opts = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
+    $('trasOrigen').innerHTML = opts; $('trasDestino').innerHTML = opts; $('trasProyecto').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
 }
 async function ejecutarTraspaso() {
     const o = $('trasOrigen').value; const d = $('trasDestino').value; const m = $('trasMonto').value; const desc = $('trasDesc').value; const p = $('trasProyecto').value;
-    if(!o || !d || !m || !p) return alert("Faltan datos");
-    if(o === d) return alert("Origen y Destino no pueden ser iguales");
+    if(!o || !d || !m || !p) return alert("Faltan datos"); if(o === d) return alert("Origen y Destino iguales");
     await fetch('/api/traspaso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({origen_id:o, destino_id:d, monto:m, descripcion:desc, usuario_actual:CURRENT_USER, activo_id:p})});
     $('traspaso-overlay').style.display='none'; loadData();
 }
-
 function abrirReportes() { $('reporte-overlay').style.display = 'flex'; actualizarReporte(); }
 function cerrarReportes() { $('reporte-overlay').style.display = 'none'; }
 function populateFilters() { $('filtroProyecto').innerHTML = '<option value="todos">Todos mis Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
@@ -282,73 +317,53 @@ async function actualizarReporte() {
     const ctx = $('chartReporteMain').getContext('2d'); if(reportChartRef) reportChartRef.destroy();
     reportChartRef = new Chart(ctx, { type: 'bar', data: { labels: ['Ingresos', 'Gastos', 'Neto'], datasets: [{ label: 'Flujo', data: [reporte.ingresos, reporte.gastos, reporte.neto], backgroundColor: ['#22c55e', '#ef4444', '#3b82f6'], borderRadius:5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' } }, x: { grid: { display: false } } } } });
 }
-
 function descargarPDF() {
-    if (!REPORT_DATA_CACHE) return alert("Carga el reporte primero");
-    $('pdf-fecha').innerText = "Fecha: " + new Date().toLocaleDateString(); $('pdf-usuario').innerText = "Usuario: " + CURRENT_USER;
+    if (!REPORT_DATA_CACHE) return alert("Carga reporte"); $('pdf-fecha').innerText = "Fecha: " + new Date().toLocaleDateString(); $('pdf-usuario').innerText = "Usuario: " + CURRENT_USER;
     $('pdf-ing').innerText = fmtMoney(REPORT_DATA_CACHE.ingresos); $('pdf-gas').innerText = fmtMoney(REPORT_DATA_CACHE.gastos); $('pdf-net').innerText = fmtMoney(REPORT_DATA_CACHE.neto);
     const tbody = $('pdf-tabla-body'); tbody.innerHTML = '';
     if(REPORT_DATA_CACHE.detalles) { REPORT_DATA_CACHE.detalles.forEach(m => { const tr = document.createElement('tr'); const color = m.tipo === 'ingreso' ? 'green' : 'red'; tr.innerHTML = `<td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion}</td><td>${m.activo_id ? m.activo_id.nombre : '-'}</td><td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td><td style="color:${color}; font-weight:bold;">${fmtMoney(Math.abs(m.monto))}</td>`; tbody.appendChild(tr); }); }
-    const element = document.getElementById('reporte-imprimible'); element.style.display = 'block';
-    html2pdf().from(element).set({ margin: 10, filename: `Reporte_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).save().then(() => { element.style.display = 'none'; });
+    const element = document.getElementById('reporte-imprimible'); element.style.display = 'block'; html2pdf().from(element).set({ margin: 10, filename: `Reporte_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).save().then(() => { element.style.display = 'none'; });
 }
-
 function abrirModalProyecto(id=null) { $('proyecto-overlay').style.display='flex'; $('proyIdEdit').value=id||''; $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:10px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><label for="chk_cta_${c._id}" style="color:#fff;cursor:pointer;">${c.nombre}</label></div>`).join(''); if(id){const p=DATA.activos.find(a=>a._id===id);$('proyModalTitle').innerText="Editar";$('proyNombre').value=p.nombre;if(p.cuentas_asociadas)p.cuentas_asociadas.forEach(c=>{const k=document.getElementById(`chk_cta_${c._id}`);if(k)k.checked=true;});}else{$('proyModalTitle').innerText="Nuevo";$('proyNombre').value='';} }
 async function guardarActivoFull(){const id=$('proyIdEdit').value;const n=$('proyNombre').value;const cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value);if(!n)return;const u=id?`/api/activos/${id}`:'/api/activos';const m=id?'PUT':'POST';await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})});$('proyecto-overlay').style.display='none';loadData();}
 async function borrarActivo(id){if(confirm("Borrar?"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData();}
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function borrarCuenta(id){if(confirm("Borrar?"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
-
-// --- NUEVA GESTION DE USUARIOS (EDITAR) ---
 async function abrirAdmin(){$('admin-overlay').style.display='flex';cargarUsuariosUI();}
 async function cargarUsuariosUI(){
     const r=await fetch('/api/usuarios'); ALL_USERS=await r.json();
     $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_user_proy_${a._id}"><span style="font-size:12px;color:#ccc;">${a.nombre}</span></div>`).join('');
-    $('listaUsuarios').innerHTML=ALL_USERS.map(x=>`
-        <li style="display:flex;justify-content:space-between;align-items:center;">
-            <div><strong style="color:${x.es_admin?'var(--green)':'#fff'}">${x.nombre_completo}</strong><div style="font-size:11px;color:#666;">${x.user}</div></div>
+    $('listaUsuarios').innerHTML=ALL_USERS.map(x=> {
+        // Mostrar visualmente qué cuentas tiene acceso el usuario
+        const cuentasAcceso = x.proyectos_permitidos.flatMap(p => p.cuentas_asociadas ? p.cuentas_asociadas.map(c=>c.nombre) : []).join(', ');
+        return `
+        <li style="display:flex;justify-content:space-between;align-items:center;padding:15px;background:#1a1a1a;margin-bottom:5px;border-radius:8px;">
+            <div>
+                <strong style="color:${x.es_admin?'var(--green)':'#fff'}">${x.nombre_completo}</strong>
+                <div style="font-size:11px;color:#666;">${x.user}</div>
+                <div style="font-size:10px;color:var(--yellow);margin-top:2px;">Acceso a: ${cuentasAcceso || 'Ninguna cuenta'}</div>
+            </div>
             <div>
                 <button class="btn btn-blue btn-small" onclick="editarUsuario('${x._id}')">✏️</button>
                 ${!x.es_admin?`<button class="btn btn-red btn-small" onclick="borrarUsuario('${x._id}')">🗑️</button>`:''}
             </div>
-        </li>`).join('');
+        </li>`
+    }).join('');
 }
 function editarUsuario(id){
-    const u = ALL_USERS.find(x => x._id === id);
-    if(!u) return;
-    $('userIdEdit').value = id;
-    $('userModalTitle').innerText = "EDITAR USUARIO: " + u.user;
-    $('new_fullname').value = u.nombre_completo;
-    $('new_user').value = u.user;
-    $('new_pass').value = ''; // Se deja en blanco para no cambiarla
-    // Marcar proyectos
-    const checkboxes = document.querySelectorAll('.chk-proy');
-    checkboxes.forEach(c => c.checked = false);
-    if(u.proyectos_permitidos) {
-        u.proyectos_permitidos.forEach(p => {
-            const chk = document.getElementById(`chk_user_proy_${p._id}`);
-            if(chk) chk.checked = true;
-        });
-    }
+    const u = ALL_USERS.find(x => x._id === id); if(!u) return;
+    $('userIdEdit').value = id; $('userModalTitle').innerText = "EDITAR USUARIO: " + u.user; $('new_fullname').value = u.nombre_completo; $('new_user').value = u.user; $('new_pass').value = '';
+    const checkboxes = document.querySelectorAll('.chk-proy'); checkboxes.forEach(c => c.checked = false);
+    if(u.proyectos_permitidos) { u.proyectos_permitidos.forEach(p => { const chk = document.getElementById(`chk_user_proy_${p._id}`); if(chk) chk.checked = true; }); }
 }
 async function guardarUsuario(){
-    const id=$('userIdEdit').value; const f=$('new_fullname').value; const u=$('new_user').value; const p=$('new_pass').value;
-    const ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);
-    
-    if(!u) return alert("Usuario obligatorio");
-    const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
-    const method = id ? 'PUT' : 'POST';
-
+    const id=$('userIdEdit').value; const f=$('new_fullname').value; const u=$('new_user').value; const p=$('new_pass').value; const ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);
+    if(!u) return alert("Usuario obligatorio"); const url = id ? `/api/usuarios/${id}` : '/api/usuarios'; const method = id ? 'PUT' : 'POST';
     await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({user:u, pass:p, nombre_completo:f, proyectos:ps})});
-    
-    // Limpiar form
-    $('userIdEdit').value=''; $('userModalTitle').innerText="NUEVO COLABORADOR"; $('new_fullname').value=''; $('new_user').value=''; $('new_pass').value='';
-    cargarUsuariosUI();
+    $('userIdEdit').value=''; $('userModalTitle').innerText="NUEVO COLABORADOR"; $('new_fullname').value=''; $('new_user').value=''; $('new_pass').value=''; cargarUsuariosUI();
 }
 async function borrarUsuario(id){if(confirm("Eliminar?"))await fetch(`/api/usuarios/${id}`,{method:'DELETE'});cargarUsuariosUI();}
-
-// --- OTROS ---
 async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m||!c)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,usuario_actual:CURRENT_USER})});closeModal();loadData();}
 async function confirmarReembolso(id){if(!confirm("Llegó?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
