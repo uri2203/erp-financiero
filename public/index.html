@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Ultimate</title>
+<title>ERP CTRFAM | Gestión Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -37,6 +37,7 @@
     /* BOTONES */
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px; transition:0.2s; text-transform:uppercase; letter-spacing:0.5px; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
+    .btn:active { transform:translateY(1px); }
     .btn-green { background:var(--green); color:#000; } 
     .btn-red { background:rgba(239, 68, 68, 0.15); color:var(--red); border:1px solid var(--red); }
     .btn-blue { background:rgba(59, 130, 246, 0.15); color:var(--blue); border:1px solid var(--blue); }
@@ -133,6 +134,10 @@
             <input type="text" id="newCatName" placeholder="Nueva Categoría">
             <select id="newCatType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select>
         </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:10px; color:#aaa;">Vincular a Proyecto (Opcional)</label>
+            <select id="newCatProy"></select>
+        </div>
         <button class="btn btn-green" onclick="crearCat()" style="width:100%;margin-bottom:15px;">AGREGAR</button>
         <ul id="listaCats" style="max-height:300px; overflow-y:auto;"></ul>
         <button class="btn btn-red" onclick="$('cats-overlay').style.display='none'" style="width:100%;margin-top:10px;">CERRAR</button>
@@ -185,7 +190,8 @@
         </div>
         <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
             <div style="min-height:250px;"><canvas id="chartReporteMain"></canvas></div>
-            <div style="min-height:250px;"><canvas id="chartReporteCat"></canvas></div> </div>
+            <div style="min-height:250px;"><canvas id="chartReporteCat"></canvas></div>
+        </div>
     </div>
 </div>
 
@@ -195,10 +201,12 @@
         <label style="font-size:12px;color:#aaa;">Concepto</label><input type="text" id="desc">
         <div class="form-row"><div style="flex:1"><label style="font-size:12px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:12px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div>
         
-        <label style="font-size:12px;color:#aaa;">Categoría</label>
-        <select id="selCat"></select> <div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:12px;">⚠️ Reembolso Pendiente</label></div>
+        <label style="font-size:12px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select> <label style="font-size:12px;color:#aaa;">Categoría</label>
+        <select id="selCat"></select>
+
+        <div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:12px;">⚠️ Reembolso Pendiente</label></div>
         <label style="font-size:12px;color:#aaa;">Cuenta</label><select id="selCuenta"></select>
-        <label style="font-size:12px;color:#aaa;">Proyecto</label><select id="selActivo"></select>
+        
         <button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button>
     </div>
 </div>
@@ -218,7 +226,13 @@
 <div class="grid">
     <div class="card"><div class="card-header"><h2>🏦 Cuentas</h2><div style="display:flex;gap:5px;"><button class="btn btn-purple btn-small" onclick="abrirArqueo()">🧮 CORTE</button><button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+</button></div></div><div id="listCuentas"></div></div>
     <div class="card"><div class="card-header"><h2>🚀 Proyectos</h2><button class="btn btn-blue btn-small" id="btnAddProy" style="display:none;" onclick="abrirModalProyecto()">+</button></div><div id="gridActivos"></div><div style="flex:1;padding-top:10px;"><canvas id="chartActivos"></canvas></div></div>
-    <div class="card"><div class="card-header"><h2>📝 Movimientos</h2></div><ul id="listMovs"></ul></div>
+    <div class="card">
+        <div class="card-header">
+            <h2>📝 Movimientos</h2>
+            <input type="text" id="searchMovs" placeholder="🔍 Buscar..." style="width:120px;padding:5px;font-size:11px;" onkeyup="filtrarMovimientos()">
+        </div>
+        <ul id="listMovs"></ul>
+    </div>
 </div>
 
 <script>
@@ -240,21 +254,46 @@ function renderAll(){
     if(DATA.pendientes.length>0)$('radar-alertas').style.display='flex';else $('radar-alertas').style.display='none';
     $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="editable-item"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
     $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="editable-item" style="background:#151515;"><div style="flex:1;"><div style="font-size:11px;color:#888;">${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>${IS_ADMIN?`<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="abrirModalProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div>`:''}</div>`).join('');
-    $('listMovs').innerHTML=DATA.movimientos.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
+    renderMovs(DATA.movimientos);
     updateChart(); populateSelects();
+}
+
+function renderMovs(movs) {
+    $('listMovs').innerHTML=movs.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
+}
+
+// BUSCADOR UNIVERSAL
+function filtrarMovimientos() {
+    const q = $('searchMovs').value.toLowerCase();
+    const filtrados = DATA.movimientos.filter(m => 
+        m.descripcion.toLowerCase().includes(q) || 
+        (m.categoria && m.categoria.toLowerCase().includes(q)) ||
+        m.monto.toString().includes(q)
+    );
+    renderMovs(filtrados);
+}
+
+// CATEGORIAS INTELIGENTES
+function abrirCats(){ $('cats-overlay').style.display='flex'; renderCats(); populateCatProjects(); }
+function populateCatProjects() { $('newCatProy').innerHTML='<option value="">-- General (Todos) --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); }
+function renderCats(){ $('listaCats').innerHTML=DATA.categorias.map(c=>`<li style="justify-content:space-between;"><span>${c.nombre} (${c.tipo}) <small style="color:#aaa">${c.proyecto_id ? '['+c.proyecto_id.nombre+']' : '[General]'}</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
+async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
+async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
+
+function filtrarCategorias() {
+    const projId = $('selActivo').value;
+    const cats = DATA.categorias.filter(c => {
+        // Mostrar si es del tipo correcto (gasto/ingreso) Y (es general O pertenece al proyecto seleccionado)
+        return c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId);
+    });
+    $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>';
 }
 
 // BACKUP & RESTORE
 async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup_ERP_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
 async function restaurarBackup(input) { if(!confirm("⚠️ ESTO BORRARÁ Y REEMPLAZARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración Completa. Recargando..."); location.reload(); }catch(err){alert("Error en archivo");} }; reader.readAsText(f); }
 
-// CATEGORIAS
-function abrirCats(){ $('cats-overlay').style.display='flex'; renderCats(); }
-function renderCats(){ $('listaCats').innerHTML=DATA.categorias.map(c=>`<li style="justify-content:space-between;"><span>${c.nombre} (${c.tipo})</span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
-async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t})}); $('newCatName').value=''; loadData().then(renderCats); }
-async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
-
-// REPORTES AVANZADOS
+// REPORTES & PDF
 function abrirReportes(){$('reporte-overlay').style.display='flex';actualizarReporte();}
 function cerrarReportes(){$('reporte-overlay').style.display='none';}
 function populateFilters(){$('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
@@ -263,10 +302,8 @@ async function actualizarReporte(){
     const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER})});
     const rep=await r.json(); REPORT_CACHE=rep;
     $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
-    // Chart 1: Barras
     const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy();
     repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#333'}}}}});
-    // Chart 2: Dona Categorias
     const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy();
     const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{});
     repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});
@@ -278,12 +315,8 @@ function descargarPDF(){
     const e=$('reporte-imprimible'); e.style.display='block'; html2pdf().from(e).save().then(()=>{e.style.display='none';});
 }
 
-// LOGICA GENERAL
-function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none';
-    // Llenar categorias segun tipo
-    const catsFiltradas = DATA.categorias.filter(c => c.tipo === t);
-    $('selCat').innerHTML = catsFiltradas.length ? catsFiltradas.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>';
-}
+// GENERAL
+function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none'; filtrarCategorias(); }
 function closeModal(){$('modal').style.display='none';}
 function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
 async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked,cat=$('selCat').value;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,categoria:cat,usuario_actual:CURRENT_USER})});closeModal();loadData();}
@@ -299,14 +332,13 @@ async function guardarArqueoYPDF(){
     const e=$('arqueo-imprimible');e.style.display='block';html2pdf().from(e).save().then(()=>{e.style.display='none';$('arqueo-overlay').style.display='none';});
 }
 
-// OTROS ADMIN
+// ADMIN OTROS
 function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
 async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
 async function abrirAdmin(){$('admin-overlay').style.display='flex';cargarUsuariosUI();}
 async function cargarUsuariosUI(){const r=await fetch('/api/usuarios');ALL_USERS=await r.json();$('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="u_p_${a._id}"><span>${a.nombre}</span></div>`).join('');$('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small>${u.proyectos_permitidos.flatMap(p=>p.cuentas_asociadas?p.cuentas_asociadas.map(c=>c.nombre):[]).join(', ')}</small></div><button class="btn btn-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join('');}
 function editarUsuario(id){const u=ALL_USERS.find(x=>x._id===id);$('userIdEdit').value=id;$('new_user').value=u.user;$('new_fullname').value=u.nombre_completo;$('new_pass').value='';document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false);if(u.proyectos_permitidos)u.proyectos_permitidos.forEach(p=>{const k=$( `u_p_${p._id}`);if(k)k.checked=true;});}
 async function guardarUsuario(){const id=$('userIdEdit').value,u=$('new_user').value,p=$('new_pass').value,f=$('new_fullname').value,ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);if(!u)return;const url=id?`/api/usuarios/${id}`:'/api/usuarios';const m=id?'PUT':'POST';await fetch(url,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})});cargarUsuariosUI();}
-// CRUD
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
