@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v5.0 (Cuentas Seguras) Conectado");
+        console.log("✅ ERP v6.0 (Reportes Full) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -37,7 +37,6 @@ const ActivoSchema = new mongoose.Schema({
     nombre: { type: String, required: true },
     balance_total: { type: Number, default: 0 },
     icono: { type: String, default: '🚀' },
-    // NUEVO: Las cuentas que este proyecto puede usar
     cuentas_asociadas: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Cuenta' }] 
 });
 
@@ -65,7 +64,7 @@ async function inicializarAdmin() {
     );
 }
 
-// --- LOGICA DE FILTRADO MAESTRA ---
+// --- LOGICA DE DATOS SEGURA ---
 async function obtenerDatosSeguros(usuarioReq) {
     const usuarioDB = await Usuario.findOne({ user: usuarioReq });
     if (!usuarioDB) throw new Error("Usuario no encontrado");
@@ -75,14 +74,14 @@ async function obtenerDatosSeguros(usuarioReq) {
     let filtroMovs = {};
 
     if (usuarioDB.es_admin) {
-        // ADMIN VE TODO
+        // ADMIN: Ve todo
         misProyectos = await Activo.find().populate('cuentas_asociadas');
         misCuentas = await Cuenta.find();
     } else {
-        // EMPLEADO: Solo ve sus proyectos y las cuentas de esos proyectos
+        // EMPLEADO: Solo sus proyectos
         misProyectos = await Activo.find({ _id: { $in: usuarioDB.proyectos_permitidos } }).populate('cuentas_asociadas');
         
-        // Extraer IDs de cuentas permitidas de los proyectos
+        // Recolectar cuentas permitidas
         let idsCuentasPermitidas = new Set();
         misProyectos.forEach(p => {
             if(p.cuentas_asociadas) {
@@ -100,8 +99,8 @@ async function obtenerDatosSeguros(usuarioReq) {
     const pendientes = await Movimiento.find({ ...filtroMovs, estado: 'pendiente_reembolso' })
         .populate('activo_id', 'nombre');
 
-    let patrimonio = 0;
-    if(usuarioDB.es_admin) patrimonio = misCuentas.reduce((sum, c) => sum + c.saldo, 0);
+    // AHORA CALCULAMOS EL PATRIMONIO PARA TODOS (Basado en lo que pueden ver)
+    let patrimonio = misCuentas.reduce((sum, c) => sum + c.saldo, 0);
 
     return { 
         cuentas: misCuentas, 
@@ -129,28 +128,14 @@ app.get('/api/data', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CRUD CUENTAS
+// CRUD (Igual que antes)
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
-
-// CRUD PROYECTOS (AHORA CON CUENTAS ASOCIADAS)
-app.post('/api/activos', async (req, res) => { 
-    try { 
-        // body trae: { nombre: "...", cuentas: ["id1", "id2"] }
-        await Activo.create({ nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); 
-        res.json({ok:true}); 
-    } catch (e) { res.status(500).json({error:"err"}); }
-});
-app.put('/api/activos/:id', async (req, res) => { 
-    try { 
-        await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); 
-        res.json({ok:true}); 
-    } catch(e){ res.status(500).json({error:"err"}); }
-});
+app.post('/api/activos', async (req, res) => { try { await Activo.create({ nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
+app.put('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-// GESTIÓN USUARIOS
 app.get('/api/usuarios', async (req, res) => {
     const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre');
     res.json(users);
@@ -164,11 +149,8 @@ app.post('/api/usuarios', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
 });
 
-// MOVIMIENTOS Y REPORTES (Iguales)
 app.post('/api/movimiento', async (req, res) => {
     const { descripcion, monto, cuenta_id, activo_id, tipo, estado, usuario_actual } = req.body;
-    // Validación extra de seguridad: ¿El usuario puede usar esa cuenta?
-    // Se podría agregar aquí, pero el frontend ya filtra.
     let montoReal = Math.abs(monto);
     if (tipo === 'gasto') montoReal = -montoReal;
     const session = await mongoose.startSession();
@@ -182,9 +164,17 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
 });
 
+// --- REPORTES INTELIGENTES (FILTRADOS POR USUARIO) ---
 app.post('/api/reporte', async (req, res) => {
-    const { mes, anio, activo_id } = req.body;
+    const { mes, anio, activo_id, user } = req.body; // Recibimos el usuario
+    
+    // Validar permisos del usuario
+    const usuarioDB = await Usuario.findOne({ user });
+    if (!usuarioDB) return res.status(403).json({ error: "No autorizado" });
+
     let filtro = {};
+
+    // 1. Filtro Fecha
     if (mes !== 'todos') {
         const start = new Date(anio, parseInt(mes), 1);
         const end = new Date(anio, parseInt(mes) + 1, 0, 23, 59, 59);
@@ -194,7 +184,26 @@ app.post('/api/reporte', async (req, res) => {
         const end = new Date(anio, 11, 31, 23, 59, 59);
         filtro.fecha = { $gte: start, $lte: end };
     }
-    if (activo_id !== 'todos') filtro.activo_id = activo_id;
+
+    // 2. Filtro Proyecto (Seguridad)
+    if (usuarioDB.es_admin) {
+        // Si es admin, respetamos lo que elija
+        if (activo_id !== 'todos') filtro.activo_id = activo_id;
+    } else {
+        // Si es empleado, FORZAMOS la seguridad
+        if (activo_id !== 'todos') {
+            // Verificamos que tenga permiso para ese proyecto específico
+            if (usuarioDB.proyectos_permitidos.includes(activo_id)) {
+                filtro.activo_id = activo_id;
+            } else {
+                return res.status(403).json({ error: "No tienes acceso a este proyecto" });
+            }
+        } else {
+            // Si pide "todos", solo le damos SUS "todos"
+            filtro.activo_id = { $in: usuarioDB.proyectos_permitidos };
+        }
+    }
+
     try {
         const movs = await Movimiento.find(filtro);
         let ingresos = 0; let gastos = 0;
@@ -223,4 +232,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP CTRFAM v5.0 corriendo en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v6.0 Reportes Usuario en ${PORT}`));
