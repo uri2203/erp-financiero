@@ -104,7 +104,8 @@
     </table>
 </div>
 
-<div id="login-overlay" style="display:flex;"> <div class="login-box">
+<div id="login-overlay" style="display:flex;">
+    <div class="login-box">
         <div style="font-size:50px; margin-bottom:20px;">🛡️</div>
         <h2 style="border:none; color:#fff; letter-spacing:2px; margin-bottom:30px;">ACCESO SEGURO</h2>
         <input type="text" id="user" class="login-input" placeholder="Usuario">
@@ -150,11 +151,19 @@
         <h2 style="color:#fff; border:none; margin-bottom:20px;">Transferencia entre Cuentas</h2>
         <label style="font-size:12px; color:#aaa;">Monto a transferir ($)</label>
         <input type="number" id="trasMonto" placeholder="0.00">
-        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label><select id="trasOrigen"></select>
-        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label><select id="trasDestino"></select>
-        <label style="font-size:12px; color:#aaa;">Nota / Referencia</label><input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
+        
+        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label>
+        <select id="trasOrigen"></select>
+        
+        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label>
+        <select id="trasDestino"></select>
+        
+        <label style="font-size:12px; color:#aaa;">Proyecto Asociado</label>
+        <select id="trasProyecto"></select> <label style="font-size:12px; color:#aaa;">Nota / Referencia</label>
+        <input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
+
         <div class="form-row" style="margin-top:20px;">
-            <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR</button>
+            <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR TRASPASO</button>
             <button class="btn btn-red" style="flex:1" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button>
         </div>
     </div>
@@ -259,18 +268,20 @@ function renderAll() {
     updateChart(); populateSelects();
 }
 
-// LOGICA TRASPASOS
+// LOGICA TRASPASOS (CORREGIDO: SELECCION DE PROYECTO)
 function abrirTraspaso() {
     $('traspaso-overlay').style.display = 'flex';
     const opts = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
     $('trasOrigen').innerHTML = opts;
     $('trasDestino').innerHTML = opts;
+    // Llenar selector de Proyectos
+    $('trasProyecto').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
 }
 async function ejecutarTraspaso() {
-    const o = $('trasOrigen').value; const d = $('trasDestino').value; const m = $('trasMonto').value; const desc = $('trasDesc').value;
-    if(!o || !d || !m) return alert("Faltan datos");
+    const o = $('trasOrigen').value; const d = $('trasDestino').value; const m = $('trasMonto').value; const desc = $('trasDesc').value; const p = $('trasProyecto').value;
+    if(!o || !d || !m || !p) return alert("Faltan datos");
     if(o === d) return alert("Origen y Destino no pueden ser iguales");
-    await fetch('/api/traspaso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({origen_id:o, destino_id:d, monto:m, descripcion:desc, usuario_actual:CURRENT_USER})});
+    await fetch('/api/traspaso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({origen_id:o, destino_id:d, monto:m, descripcion:desc, usuario_actual:CURRENT_USER, activo_id:p})});
     $('traspaso-overlay').style.display='none'; loadData();
 }
 
