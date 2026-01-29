@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP Empresarial | Control Total</title>
+<title>ERP CTRFAM | Control Total</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -11,11 +11,12 @@
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
     /* MODALS */
-    #login-overlay, #admin-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-    #admin-overlay { background:rgba(0,0,0,0.95); z-index:9998; display:none; }
+    #login-overlay, #admin-overlay, #reporte-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+    #admin-overlay, #reporte-overlay { background:rgba(0,0,0,0.95); z-index:9998; display:none; }
     
     .login-box { width:300px; text-align:center; }
-    .admin-box { width:90%; max-width:600px; height:80vh; background:#111; border:1px solid #333; border-radius:15px; padding:20px; display:flex; flex-direction:column; overflow-y:auto; }
+    .admin-box, .reporte-box { width:90%; max-width:600px; height:80vh; background:#111; border:1px solid #333; border-radius:15px; padding:20px; display:flex; flex-direction:column; overflow-y:auto; }
+    .reporte-box { max-width:800px; }
     .login-input { width:100%; padding:15px; background:#111; border:1px solid #333; color:#fff; margin-bottom:10px; border-radius:8px; font-size:16px; text-align:center; }
     
     /* RADAR ALERTAS */
@@ -37,7 +38,12 @@
     .btn-green { background:var(--green); color:#000; } 
     .btn-red { background:rgba(255,23,68,0.15); color:var(--red); border:1px solid var(--red); }
     .btn-blue { background:rgba(41,121,255,0.15); color:var(--blue); border:1px solid var(--blue); }
+    .btn-gold { background:rgba(255, 215, 0, 0.15); color:#ffd700; border:1px solid #ffd700; }
     .btn-yellow { background:var(--yellow); color:#000; }
+
+    /* CONTROLES REPORTE */
+    .filter-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+    .filter-select { background:#000; color:#fff; border:1px solid #333; padding:10px; border-radius:6px; flex:1; }
 
     /* MODAL REGISTRO */
     #modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99; display:none; justify-content:center; align-items:center; backdrop-filter:blur(5px); }
@@ -54,7 +60,7 @@
 <div id="login-overlay">
     <div style="font-size:40px; margin-bottom:20px;">🛡️</div>
     <div class="login-box">
-        <h2 style="border:none; color:#fff;">ERP CORPORATIVO</h2>
+        <h2 style="border:none; color:#fff;">ERP CTRFAM</h2>
         <input type="text" id="user" class="login-input" placeholder="Usuario">
         <input type="password" id="pass" class="login-input" placeholder="Contraseña">
         <button class="btn btn-green" style="width:100%" onclick="doLogin()">ACCEDER</button>
@@ -83,12 +89,45 @@
     </div>
 </div>
 
+<div id="reporte-overlay">
+    <div class="reporte-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="border:none; margin:0; font-size:20px; color:#fff;">📊 Inteligencia de Negocios</h2>
+            <button class="btn btn-red" style="width:auto; padding:5px 15px;" onclick="cerrarReportes()">X CERRAR</button>
+        </div>
+        <div class="filter-bar">
+            <select id="filtroAnio" class="filter-select" onchange="actualizarReporte()">
+                <option value="2026">2026</option><option value="2025">2025</option>
+            </select>
+            <select id="filtroMes" class="filter-select" onchange="actualizarReporte()">
+                <option value="todos">Todo el Año</option>
+                <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+                <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+                <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+                <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+            </select>
+            <select id="filtroProyecto" class="filter-select" onchange="actualizarReporte()">
+                <option value="todos">Todos los Proyectos</option>
+            </select>
+        </div>
+        <div style="flex:1; position:relative;">
+            <canvas id="chartReporteMain"></canvas>
+        </div>
+        <div style="display:flex; gap:20px; margin-top:20px; border-top:1px solid #333; padding-top:15px;">
+            <div style="text-align:center; flex:1;"><div style="color:var(--green); font-weight:bold;">INGRESOS</div><div id="repIng" style="font-size:20px;">$0.00</div></div>
+            <div style="text-align:center; flex:1;"><div style="color:var(--red); font-weight:bold;">GASTOS</div><div id="repGas" style="font-size:20px;">$0.00</div></div>
+            <div style="text-align:center; flex:1;"><div style="color:#fff; font-weight:bold;">NETO</div><div id="repNeto" style="font-size:20px;">$0.00</div></div>
+        </div>
+    </div>
+</div>
+
 <div class="top-bar">
     <div>
         <div style="font-size:12px; color:var(--gray); font-weight:600;">PATRIMONIO VISIBLE</div>
         <div class="big-number" id="totalPatrimonio">---</div>
     </div>
     <div style="display:flex; gap:10px;">
+        <button class="btn btn-gold" id="btnReportes" style="display:none; width:auto; padding:10px 20px;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn btn-blue" id="btnAdmin" style="display:none; width:auto; padding:10px 20px;" onclick="abrirAdmin()">⚙️ USUARIOS</button>
         <button class="btn btn-green" style="width:auto; padding:10px 20px;" onclick="openModal('ingreso')">⬆ INGRESAR</button>
         <button class="btn btn-red" style="width:auto; padding:10px 20px;" onclick="openModal('gasto')">⬇ GASTAR</button>
@@ -147,7 +186,7 @@ let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[] };
 let CURRENT_USER = '';
 let IS_ADMIN = false;
 let currentTipo = 'ingreso';
-let chartRef;
+let chartRef, reportChartRef;
 
 // --- LOGIN ---
 async function doLogin() {
@@ -157,7 +196,7 @@ async function doLogin() {
         const data = await res.json();
         if (data.success) { 
             CURRENT_USER = data.user; 
-            IS_ADMIN = data.es_admin; // Boolean
+            IS_ADMIN = data.es_admin;
             $('login-overlay').style.display='none'; 
             loadData(); 
         } else { $('loginError').style.display='block'; }
@@ -170,7 +209,7 @@ async function loadData() {
     try {
         const res = await fetch(`/api/data?user=${CURRENT_USER}`); 
         DATA = await res.json();
-        renderAll();
+        renderAll(); populateFilters();
     } catch(e) { console.error("Error cargando"); }
 }
 
@@ -178,13 +217,14 @@ function renderAll() {
     // 1. Mostrar/Ocultar controles Admin
     if(IS_ADMIN) {
         $('btnAdmin').style.display = 'flex';
+        $('btnReportes').style.display = 'flex';
         $('btnAddProy').style.display = 'block';
         $('totalPatrimonio').innerText = fmtMoney(DATA.patrimonio);
     } else {
-        $('totalPatrimonio').innerText = '🔒 Oculto'; // Empleado no ve patrimonio total
+        $('totalPatrimonio').innerText = '🔒 Oculto';
     }
 
-    // 2. Radar de Reembolsos (Vital para Mercado Libre)
+    // 2. Radar de Reembolsos
     const radar = $('radar-alertas');
     radar.innerHTML = '';
     if(DATA.pendientes && DATA.pendientes.length > 0) {
@@ -192,102 +232,68 @@ function renderAll() {
         DATA.pendientes.forEach(m => {
             const item = document.createElement('div');
             item.className = 'alerta-item';
-            item.innerHTML = `
-                <div>
-                    <strong>⚠️ REEMBOLSO PENDIENTE: ${fmtMoney(Math.abs(m.monto))}</strong><br>
-                    <span style="font-size:11px;">${m.descripcion} (${m.activo_id?.nombre}) - Creado por ${m.creado_por}</span>
-                </div>
-                <button class="btn btn-green" style="padding:5px 10px; width:auto;" onclick="confirmarReembolso('${m._id}')">✅ CONFIRMAR LLEGADA</button>
-            `;
+            item.innerHTML = `<div><strong>⚠️ REEMBOLSO PENDIENTE: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion} (${m.activo_id?.nombre}) - Creado por ${m.creado_por}</span></div><button class="btn btn-green" style="padding:5px 10px; width:auto;" onclick="confirmarReembolso('${m._id}')">✅ CONFIRMAR</button>`;
             radar.appendChild(item);
         });
-    } else {
-        radar.style.display = 'none';
-    }
+    } else { radar.style.display = 'none'; }
 
     // 3. Listas Normales
     $('listCuentas').innerHTML = DATA.cuentas.map(c => `<div style="background:#1a1a1a; padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;"><span>${c.icono} ${c.nombre}</span><span style="font-weight:bold;">${fmtMoney(c.saldo)}</span></div>`).join('');
-    
     $('gridActivos').innerHTML = DATA.activos.map(a => `<div style="background:#151515; border:1px solid #333; padding:10px; border-radius:8px;"><div style="font-size:11px; color:#888;">${a.icono} ${a.nombre}</div><div style="font-size:15px; font-weight:bold; color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
     
-    // Lista de movimientos con firma de autor
+    // Lista de movimientos
     $('listMovs').innerHTML = DATA.movimientos.map(m => {
         let color = m.tipo=='ingreso'?'var(--green)':'var(--red)';
         if(m.estado === 'pendiente_reembolso') color = 'var(--yellow)';
-        if(m.estado === 'reembolsado') color = '#555'; // Gris si ya fue devuelto
-
-        return `
-        <li style="opacity:${m.estado==='reembolsado'?0.5:1}">
-            <div>
-                <span style="display:block; font-size:13px; font-weight:600;">${m.descripcion} ${m.estado==='reembolsado'?'(DEVUELTO)':''}</span>
-                <span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span>
-            </div>
-            <span style="font-weight:bold; color:${color}">
-                ${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}
-            </span>
-        </li>`
+        if(m.estado === 'reembolsado') color = '#555';
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block; font-size:13px; font-weight:600;">${m.descripcion} ${m.estado==='reembolsado'?'(DEVUELTO)':''}</span><span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span></div><span style="font-weight:bold; color:${color}">${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}</span></li>`
     }).join('');
-    
     updateChart(); populateSelects();
 }
 
 // --- LOGICA REEMBOLSOS ---
 async function confirmarReembolso(id) {
     if(!confirm("¿Confirmas que el dinero YA LLEGÓ a la cuenta?")) return;
-    await fetch('/api/confirmar-reembolso', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ mov_id: id, usuario_actual: CURRENT_USER })
-    });
+    await fetch('/api/confirmar-reembolso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mov_id: id, usuario_actual: CURRENT_USER }) });
     loadData();
 }
 
 // --- GESTION USUARIOS ---
-async function abrirAdmin() {
-    $('admin-overlay').style.display='flex';
-    cargarUsuariosUI();
-}
+async function abrirAdmin() { $('admin-overlay').style.display='flex'; cargarUsuariosUI(); }
 async function cargarUsuariosUI() {
-    const res = await fetch('/api/usuarios');
-    const users = await res.json();
-    
-    // Checklist de proyectos disponibles para asignar
-    $('checklistProyectos').innerHTML = DATA.activos.map(a => `
-        <div style="display:flex; align-items:center; gap:5px;">
-            <input type="checkbox" class="chk-proy" value="${a._id}"> <span style="font-size:12px; color:#aaa;">${a.nombre}</span>
-        </div>
-    `).join('');
-
-    $('listaUsuarios').innerHTML = users.map(u => `
-        <li style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <strong style="color:${u.es_admin?'var(--green)':'#fff'}">${u.user} ${u.es_admin?'(ADMIN)':''}</strong>
-                <div style="font-size:10px; color:#666;">Permisos: ${u.proyectos_permitidos.map(p=>p.nombre).join(', ') || 'Ninguno'}</div>
-            </div>
-            ${!u.es_admin ? `<button class="btn btn-red" style="padding:5px;" onclick="borrarUsuario('${u._id}')">🗑️</button>` : ''}
-        </li>
-    `).join('');
+    const res = await fetch('/api/usuarios'); const users = await res.json();
+    $('checklistProyectos').innerHTML = DATA.activos.map(a => `<div style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}"> <span style="font-size:12px; color:#aaa;">${a.nombre}</span></div>`).join('');
+    $('listaUsuarios').innerHTML = users.map(u => `<li style="display:flex; justify-content:space-between; align-items:center;"><div><strong style="color:${u.es_admin?'var(--green)':'#fff'}">${u.user} ${u.es_admin?'(ADMIN)':''}</strong><div style="font-size:10px; color:#666;">Permisos: ${u.proyectos_permitidos.map(p=>p.nombre).join(', ') || 'Ninguno'}</div></div>${!u.es_admin ? `<button class="btn btn-red" style="padding:5px;" onclick="borrarUsuario('${u._id}')">🗑️</button>` : ''}</li>`).join('');
 }
 async function guardarUsuario() {
-    const user = $('new_user').value;
-    const pass = $('new_pass').value;
-    // Obtener proyectos marcados
-    const checkboxes = document.querySelectorAll('.chk-proy:checked');
-    const proyectos = Array.from(checkboxes).map(c => c.value);
-
+    const user = $('new_user').value; const pass = $('new_pass').value;
+    const checkboxes = document.querySelectorAll('.chk-proy:checked'); const proyectos = Array.from(checkboxes).map(c => c.value);
     if(!user || !pass) return alert("Falta usuario o contraseña");
-
-    await fetch('/api/usuarios', {
-        method: 'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'crear', user, pass, proyectos })
-    });
-    $('new_user').value = ''; $('new_pass').value = '';
-    cargarUsuariosUI();
+    await fetch('/api/usuarios', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'crear', user, pass, proyectos }) });
+    $('new_user').value = ''; $('new_pass').value = ''; cargarUsuariosUI();
 }
-async function borrarUsuario(id) {
-    if(confirm("¿Eliminar usuario?")) {
-        await fetch('/api/usuarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'borrar', id }) });
-        cargarUsuariosUI();
-    }
+async function borrarUsuario(id) { if(confirm("¿Eliminar?")) { await fetch('/api/usuarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'borrar', id }) }); cargarUsuariosUI(); } }
+
+// --- REPORTES ---
+function abrirReportes() { $('reporte-overlay').style.display = 'flex'; actualizarReporte(); }
+function cerrarReportes() { $('reporte-overlay').style.display = 'none'; }
+function populateFilters() {
+    const selector = $('filtroProyecto');
+    selector.innerHTML = '<option value="todos">Todos los Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
+}
+async function actualizarReporte() {
+    const anio = $('filtroAnio').value; const mes = $('filtroMes').value; const activo_id = $('filtroProyecto').value;
+    const res = await fetch('/api/reporte', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ anio, mes, activo_id }) });
+    const reporte = await res.json();
+
+    $('repIng').innerText = fmtMoney(reporte.ingresos);
+    $('repGas').innerText = fmtMoney(reporte.gastos);
+    $('repNeto').innerText = fmtMoney(reporte.neto);
+    $('repNeto').style.color = reporte.neto >= 0 ? 'var(--green)' : 'var(--red)';
+
+    const ctx = $('chartReporteMain').getContext('2d');
+    if(reportChartRef) reportChartRef.destroy();
+    reportChartRef = new Chart(ctx, { type: 'bar', data: { labels: ['Ingresos', 'Gastos', 'Neto'], datasets: [{ label: 'Flujo', data: [reporte.ingresos, reporte.gastos, reporte.neto], backgroundColor: ['#00e676', '#ff1744', '#2979ff'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' }, ticks: { color: '#888' } } } } });
 }
 
 // --- ACCIONES GENERALES ---
@@ -300,18 +306,8 @@ async function guardarMovimiento() {
     if(currentTipo === 'gasto' && esReembolso) estado = 'pendiente_reembolso';
 
     if(!desc || !monto || !cuenta_id) return alert("Faltan datos");
-    
-    const res = await fetch('/api/movimiento', { 
-        method:'POST', headers:{'Content-Type':'application/json'}, 
-        body:JSON.stringify({ 
-            descripcion:desc, monto, cuenta_id, activo_id, 
-            tipo:currentTipo, estado, usuario_actual: CURRENT_USER 
-        }) 
-    });
-    
-    const json = await res.json();
-    if(json.error) return alert("ERROR: " + json.error);
-
+    const res = await fetch('/api/movimiento', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ descripcion:desc, monto, cuenta_id, activo_id, tipo:currentTipo, estado, usuario_actual: CURRENT_USER }) });
+    const json = await res.json(); if(json.error) return alert(json.error);
     closeModal(); loadData();
 }
 
@@ -320,25 +316,14 @@ async function crearActivo() { const n = prompt("Nombre Proyecto:"); if(n) { awa
 
 const fmtMoney = num => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
 function openModal(t) { 
-    currentTipo=t; 
-    $('modal').style.display='flex'; 
-    $('tipoTxt').value=t.toUpperCase(); 
-    $('desc').value=''; $('monto').value=''; 
-    
-    // Mostrar checkbox de reembolso solo si es GASTO
-    if(t === 'gasto') $('divReembolso').style.display = 'flex';
-    else $('divReembolso').style.display = 'none';
-    $('chkReembolso').checked = false;
+    currentTipo=t; $('modal').style.display='flex'; $('tipoTxt').value=t.toUpperCase(); $('desc').value=''; $('monto').value=''; 
+    if(t === 'gasto') $('divReembolso').style.display = 'flex'; else $('divReembolso').style.display = 'none'; $('chkReembolso').checked = false;
 }
 function closeModal() { $('modal').style.display='none'; }
 function populateSelects() {
     $('selCuenta').innerHTML = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
-    // Si soy admin veo opción "Personal", si no, solo los proyectos obligatorios
-    if(IS_ADMIN) {
-        $('selActivo').innerHTML = `<option value="">-- Personal --</option>` + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
-    } else {
-        $('selActivo').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
-    }
+    if(IS_ADMIN) { $('selActivo').innerHTML = `<option value="">-- Personal --</option>` + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); } 
+    else { $('selActivo').innerHTML = DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
 }
 function updateChart() {
     const ctx = $('chartActivos').getContext('2d'); if(chartRef) chartRef.destroy();
