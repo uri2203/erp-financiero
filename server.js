@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v6.0 (Reportes Full) Conectado");
+        console.log("✅ ERP v7.0 (PDF Pro) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -69,26 +69,17 @@ async function obtenerDatosSeguros(usuarioReq) {
     const usuarioDB = await Usuario.findOne({ user: usuarioReq });
     if (!usuarioDB) throw new Error("Usuario no encontrado");
 
-    let misProyectos = [];
-    let misCuentas = [];
-    let filtroMovs = {};
+    let misProyectos = [], misCuentas = [], filtroMovs = {};
 
     if (usuarioDB.es_admin) {
-        // ADMIN: Ve todo
         misProyectos = await Activo.find().populate('cuentas_asociadas');
         misCuentas = await Cuenta.find();
     } else {
-        // EMPLEADO: Solo sus proyectos
         misProyectos = await Activo.find({ _id: { $in: usuarioDB.proyectos_permitidos } }).populate('cuentas_asociadas');
-        
-        // Recolectar cuentas permitidas
         let idsCuentasPermitidas = new Set();
         misProyectos.forEach(p => {
-            if(p.cuentas_asociadas) {
-                p.cuentas_asociadas.forEach(c => idsCuentasPermitidas.add(c._id.toString()));
-            }
+            if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c => idsCuentasPermitidas.add(c._id.toString()));
         });
-        
         misCuentas = await Cuenta.find({ _id: { $in: Array.from(idsCuentasPermitidas) } });
         filtroMovs.activo_id = { $in: misProyectos.map(p => p._id) };
     }
@@ -99,21 +90,12 @@ async function obtenerDatosSeguros(usuarioReq) {
     const pendientes = await Movimiento.find({ ...filtroMovs, estado: 'pendiente_reembolso' })
         .populate('activo_id', 'nombre');
 
-    // AHORA CALCULAMOS EL PATRIMONIO PARA TODOS (Basado en lo que pueden ver)
     let patrimonio = misCuentas.reduce((sum, c) => sum + c.saldo, 0);
 
-    return { 
-        cuentas: misCuentas, 
-        activos: misProyectos, 
-        movimientos, 
-        patrimonio, 
-        pendientes, 
-        es_admin: usuarioDB.es_admin 
-    };
+    return { cuentas: misCuentas, activos: misProyectos, movimientos, patrimonio, pendientes, es_admin: usuarioDB.es_admin };
 }
 
 // --- RUTAS API ---
-
 app.post('/api/login', async (req, res) => {
     const { user, pass } = req.body;
     const usuario = await Usuario.findOne({ user, pass });
@@ -128,7 +110,7 @@ app.get('/api/data', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CRUD (Igual que antes)
+// CRUD 
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
@@ -164,17 +146,16 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
 });
 
-// --- REPORTES INTELIGENTES (FILTRADOS POR USUARIO) ---
+// --- REPORTES PRO (CON DETALLE) ---
 app.post('/api/reporte', async (req, res) => {
-    const { mes, anio, activo_id, user } = req.body; // Recibimos el usuario
+    const { mes, anio, activo_id, user } = req.body;
     
-    // Validar permisos del usuario
     const usuarioDB = await Usuario.findOne({ user });
     if (!usuarioDB) return res.status(403).json({ error: "No autorizado" });
 
     let filtro = {};
 
-    // 1. Filtro Fecha
+    // 1. Fecha
     if (mes !== 'todos') {
         const start = new Date(anio, parseInt(mes), 1);
         const end = new Date(anio, parseInt(mes) + 1, 0, 23, 59, 59);
@@ -185,33 +166,32 @@ app.post('/api/reporte', async (req, res) => {
         filtro.fecha = { $gte: start, $lte: end };
     }
 
-    // 2. Filtro Proyecto (Seguridad)
+    // 2. Seguridad Proyecto
     if (usuarioDB.es_admin) {
-        // Si es admin, respetamos lo que elija
         if (activo_id !== 'todos') filtro.activo_id = activo_id;
     } else {
-        // Si es empleado, FORZAMOS la seguridad
         if (activo_id !== 'todos') {
-            // Verificamos que tenga permiso para ese proyecto específico
-            if (usuarioDB.proyectos_permitidos.includes(activo_id)) {
-                filtro.activo_id = activo_id;
-            } else {
-                return res.status(403).json({ error: "No tienes acceso a este proyecto" });
-            }
+            if (usuarioDB.proyectos_permitidos.includes(activo_id)) filtro.activo_id = activo_id;
+            else return res.status(403).json({ error: "No tienes acceso" });
         } else {
-            // Si pide "todos", solo le damos SUS "todos"
             filtro.activo_id = { $in: usuarioDB.proyectos_permitidos };
         }
     }
 
     try {
-        const movs = await Movimiento.find(filtro);
+        // AHORA TRAEMOS TODOS LOS MOVIMIENTOS DETALLADOS
+        const movs = await Movimiento.find(filtro).sort({ fecha: 1 })
+            .populate('activo_id', 'nombre')
+            .populate('cuenta_id', 'nombre');
+
         let ingresos = 0; let gastos = 0;
         movs.forEach(m => {
             if(m.tipo === 'ingreso' || m.estado === 'reembolsado') ingresos += Math.abs(m.monto);
             if(m.tipo === 'gasto' && m.estado !== 'reembolsado') gastos += Math.abs(m.monto);
         });
-        res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length });
+        
+        // Enviamos detalles para la tabla del PDF
+        res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length, detalles: movs });
     } catch (e) { res.status(500).json({ error: "Error reporte" }); }
 });
 
@@ -232,4 +212,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP v6.0 Reportes Usuario en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v7.0 PDF en ${PORT}`));
