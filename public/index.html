@@ -98,24 +98,19 @@
 <div id="proyecto-overlay">
     <div class="proyecto-box">
         <h2 style="color:#fff; border:none; margin-bottom:20px;" id="proyModalTitle">Configurar Proyecto</h2>
-        <input type="hidden" id="proyIdEdit"> <label>Nombre del Proyecto</label>
+        <input type="hidden" id="proyIdEdit">
+        <label>Nombre del Proyecto</label>
         <input type="text" id="proyNombre" placeholder="Ej. Yayika ML">
-        
         <label style="color:var(--yellow); font-size:12px;">CUENTAS VINCULADAS (Solo estas cuentas serán visibles para los empleados asignados a este proyecto)</label>
-        <div id="checklistCuentasProy" style="background:#222; padding:10px; border-radius:8px; display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:20px;">
-            </div>
-
-        <div class="form-row">
-            <button class="btn btn-green" onclick="guardarActivoFull()">GUARDAR</button>
-            <button class="btn btn-red" onclick="$('proyecto-overlay').style.display='none'">CANCELAR</button>
-        </div>
+        <div id="checklistCuentasProy" style="background:#222; padding:10px; border-radius:8px; display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:20px;"></div>
+        <div class="form-row"><button class="btn btn-green" onclick="guardarActivoFull()">GUARDAR</button><button class="btn btn-red" onclick="$('proyecto-overlay').style.display='none'">CANCELAR</button></div>
     </div>
 </div>
 
 <div id="reporte-overlay">
     <div class="reporte-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="border:none; margin:0; font-size:20px; color:#fff;">📊 Reportes</h2>
+            <h2 style="border:none; margin:0; font-size:20px; color:#fff;">📊 Inteligencia de Negocios</h2>
             <button class="btn btn-red" style="width:auto; padding:5px 15px;" onclick="cerrarReportes()">X CERRAR</button>
         </div>
         <div class="filter-bar">
@@ -123,7 +118,7 @@
             <select id="filtroMes" class="filter-select" onchange="actualizarReporte()">
                 <option value="todos">Todo el Año</option><option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option><option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option><option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option><option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
             </select>
-            <select id="filtroProyecto" class="filter-select" onchange="actualizarReporte()"><option value="todos">Todos los Proyectos</option></select>
+            <select id="filtroProyecto" class="filter-select" onchange="actualizarReporte()"><option value="todos">Todos mis Proyectos</option></select>
         </div>
         <div style="flex:1; position:relative;"><canvas id="chartReporteMain"></canvas></div>
         <div style="display:flex; gap:20px; margin-top:20px; border-top:1px solid #333; padding-top:15px;">
@@ -136,7 +131,7 @@
 
 <div class="top-bar">
     <div>
-        <div style="font-size:12px; color:var(--gray); font-weight:600;">PATRIMONIO VISIBLE</div>
+        <div style="font-size:12px; color:var(--gray); font-weight:600;">PATRIMONIO VISIBLE (TUYO)</div>
         <div class="big-number" id="totalPatrimonio">---</div>
     </div>
     <div style="display:flex; gap:10px;">
@@ -195,7 +190,6 @@ let IS_ADMIN = false;
 let currentTipo = 'ingreso';
 let chartRef, reportChartRef;
 
-// --- LOGIN ---
 async function doLogin() {
     const user = $('user').value; const pass = $('pass').value;
     try {
@@ -207,7 +201,6 @@ async function doLogin() {
 }
 function logout() { location.reload(); }
 
-// --- DATA & RENDER ---
 async function loadData() {
     try {
         const res = await fetch(`/api/data?user=${CURRENT_USER}`); DATA = await res.json(); renderAll(); populateFilters();
@@ -215,12 +208,17 @@ async function loadData() {
 }
 
 function renderAll() {
+    // BOTON DE REPORTES: AHORA SIEMPRE VISIBLE PARA TODOS
+    $('btnReportes').style.display = 'flex'; 
+    // PATRIMONIO: SIEMPRE VISIBLE PARA TODOS (YA ESTA FILTRADO DESDE EL SERVER)
+    $('totalPatrimonio').innerText = fmtMoney(DATA.patrimonio);
+
     if(IS_ADMIN) {
-        $('btnAdmin').style.display = 'flex'; $('btnReportes').style.display = 'flex';
+        $('btnAdmin').style.display = 'flex'; 
         $('btnAddProy').style.display = 'block'; $('btnAddCta').style.display = 'block';
-        $('totalPatrimonio').innerText = fmtMoney(DATA.patrimonio);
     } else {
-        $('totalPatrimonio').innerText = '🔒 Oculto';
+        $('btnAdmin').style.display = 'none'; 
+        $('btnAddProy').style.display = 'none'; $('btnAddCta').style.display = 'none';
     }
 
     const radar = $('radar-alertas'); radar.innerHTML = '';
@@ -239,7 +237,6 @@ function renderAll() {
             ${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>` : ''}
         </div>`).join('');
     
-    // Proyectos (Muestra detalles de cuentas vinculadas al editar)
     $('gridActivos').innerHTML = DATA.activos.map(a => `
         <div class="editable-item" style="background:#151515; border:1px solid #333;">
             <div style="flex:1;">
@@ -259,64 +256,29 @@ function renderAll() {
     updateChart(); populateSelects();
 }
 
-// --- LOGICA PROYECTOS AVANZADA ---
 function abrirModalProyecto(id = null) {
-    $('proyecto-overlay').style.display='flex';
-    $('proyIdEdit').value = id || '';
-    
-    // Cargar Cuentas para el checklist
-    // OJO: Mostramos TODAS las cuentas disponibles para que el admin elija
-    // Usamos fetch directo a cuentas o usamos DATA.cuentas si ya somos admin (Admin tiene todas en DATA)
+    $('proyecto-overlay').style.display='flex'; $('proyIdEdit').value = id || '';
     const container = $('checklistCuentasProy');
-    container.innerHTML = DATA.cuentas.map(c => `
-        <div style="display:flex; align-items:center; gap:5px;">
-            <input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"> 
-            <label for="chk_cta_${c._id}" style="font-size:12px; cursor:pointer;">${c.nombre}</label>
-        </div>
-    `).join('');
-
+    container.innerHTML = DATA.cuentas.map(c => `<div style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"> <label for="chk_cta_${c._id}" style="font-size:12px; cursor:pointer;">${c.nombre}</label></div>`).join('');
     if(id) {
-        // Modo Edición: Cargar datos actuales
-        const proy = DATA.activos.find(a => a._id === id);
-        $('proyModalTitle').innerText = "Editar Proyecto";
-        $('proyNombre').value = proy.nombre;
-        // Marcar cuentas ya asociadas
-        if(proy.cuentas_asociadas) {
-            proy.cuentas_asociadas.forEach(c => {
-                const chk = document.getElementById(`chk_cta_${c._id}`);
-                if(chk) chk.checked = true;
-            });
-        }
-    } else {
-        $('proyModalTitle').innerText = "Nuevo Proyecto";
-        $('proyNombre').value = '';
-    }
+        const proy = DATA.activos.find(a => a._id === id); $('proyModalTitle').innerText = "Editar Proyecto"; $('proyNombre').value = proy.nombre;
+        if(proy.cuentas_asociadas) proy.cuentas_asociadas.forEach(c => { const chk = document.getElementById(`chk_cta_${c._id}`); if(chk) chk.checked = true; });
+    } else { $('proyModalTitle').innerText = "Nuevo Proyecto"; $('proyNombre').value = ''; }
 }
 
 async function guardarActivoFull() {
-    const id = $('proyIdEdit').value;
-    const nombre = $('proyNombre').value;
-    const checks = document.querySelectorAll('.chk-cta-proy:checked');
-    const cuentas = Array.from(checks).map(c => c.value);
-
+    const id = $('proyIdEdit').value; const nombre = $('proyNombre').value; const checks = document.querySelectorAll('.chk-cta-proy:checked'); const cuentas = Array.from(checks).map(c => c.value);
     if(!nombre) return alert("Nombre obligatorio");
-
-    const url = id ? `/api/activos/${id}` : '/api/activos';
-    const method = id ? 'PUT' : 'POST';
-
+    const url = id ? `/api/activos/${id}` : '/api/activos'; const method = id ? 'PUT' : 'POST';
     await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre, cuentas})});
-    $('proyecto-overlay').style.display='none';
-    loadData();
+    $('proyecto-overlay').style.display='none'; loadData();
 }
-
 async function borrarActivo(id) { if(confirm("¿Eliminar proyecto?")) { await fetch(`/api/activos/${id}`, {method:'DELETE'}); loadData(); }}
 
-// --- CRUD CUENTAS ---
 async function crearCuenta() { const n = prompt("Nombre Cuenta:"); if(n) { await fetch('/api/cuentas', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})}); loadData(); }}
 async function editarCuenta(id, nOld) { const n = prompt("Nuevo nombre:", nOld); if(n) { await fetch(`/api/cuentas/${id}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})}); loadData(); }}
 async function borrarCuenta(id) { if(confirm("¿Eliminar cuenta?")) { await fetch(`/api/cuentas/${id}`, {method:'DELETE'}); loadData(); }}
 
-// --- OTROS (Sin cambios importantes) ---
 async function abrirAdmin() { $('admin-overlay').style.display='flex'; cargarUsuariosUI(); }
 async function cargarUsuariosUI() {
     const res = await fetch('/api/usuarios'); const users = await res.json();
@@ -340,17 +302,21 @@ async function guardarMovimiento() {
     const json = await res.json(); if(json.error) return alert(json.error); closeModal(); loadData();
 }
 async function confirmarReembolso(id) { if(!confirm("Confirmar recepción?")) return; await fetch('/api/confirmar-reembolso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mov_id: id, usuario_actual: CURRENT_USER }) }); loadData(); }
+
+// --- REPORTES ---
 function abrirReportes() { $('reporte-overlay').style.display = 'flex'; actualizarReporte(); }
 function cerrarReportes() { $('reporte-overlay').style.display = 'none'; }
-function populateFilters() { $('filtroProyecto').innerHTML = '<option value="todos">Todos los Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
+function populateFilters() { $('filtroProyecto').innerHTML = '<option value="todos">Todos mis Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
 async function actualizarReporte() {
     const anio = $('filtroAnio').value; const mes = $('filtroMes').value; const activo_id = $('filtroProyecto').value;
-    const res = await fetch('/api/reporte', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ anio, mes, activo_id }) });
+    // ENVIAMOS EL USUARIO ACTUAL PARA QUE EL BACKEND FILTRE POR SEGURIDAD
+    const res = await fetch('/api/reporte', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ anio, mes, activo_id, user: CURRENT_USER }) });
     const reporte = await res.json();
     $('repIng').innerText = fmtMoney(reporte.ingresos); $('repGas').innerText = fmtMoney(reporte.gastos); $('repNeto').innerText = fmtMoney(reporte.neto); $('repNeto').style.color = reporte.neto >= 0 ? 'var(--green)' : 'var(--red)';
     const ctx = $('chartReporteMain').getContext('2d'); if(reportChartRef) reportChartRef.destroy();
     reportChartRef = new Chart(ctx, { type: 'bar', data: { labels: ['Ingresos', 'Gastos', 'Neto'], datasets: [{ label: 'Flujo', data: [reporte.ingresos, reporte.gastos, reporte.neto], backgroundColor: ['#00e676', '#ff1744', '#2979ff'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' }, ticks: { color: '#888' } } } } });
 }
+
 const fmtMoney = num => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
 function openModal(t) { currentTipo=t; $('modal').style.display='flex'; $('tipoTxt').value=t.toUpperCase(); $('desc').value=''; $('monto').value=''; if(t === 'gasto') $('divReembolso').style.display = 'flex'; else $('divReembolso').style.display = 'none'; $('chkReembolso').checked = false; }
 function closeModal() { $('modal').style.display='none'; }
