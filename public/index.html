@@ -3,73 +3,138 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Gestión Integral</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<title>ERP CTRFAM | Gestión Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <style>
-    :root { --bg:#050505; --card:#111; --text:#fff; --gray:#888; --green:#00e676; --red:#ff1744; --blue:#2979ff; --yellow:#ffd700; --border:#222; }
+    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
     /* MODALS */
-    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-    #admin-overlay, #reporte-overlay, #proyecto-overlay { background:rgba(0,0,0,0.95); z-index:9998; display:none; }
+    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+    #admin-overlay, #reporte-overlay, #proyecto-overlay { display:none; }
     
     .login-box { width:300px; text-align:center; }
-    .admin-box, .reporte-box, .proyecto-box { width:90%; max-width:600px; height:80vh; background:#111; border:1px solid #333; border-radius:15px; padding:20px; display:flex; flex-direction:column; overflow-y:auto; }
-    .reporte-box { max-width:800px; }
-    .proyecto-box { height:auto; max-height:80vh; }
-    .login-input { width:100%; padding:15px; background:#111; border:1px solid #333; color:#fff; margin-bottom:10px; border-radius:8px; font-size:16px; text-align:center; }
-    
-    /* RADAR ALERTAS */
-    #radar-alertas { display:none; flex-direction:column; gap:10px; margin-bottom:20px; }
-    .alerta-item { background:rgba(255, 215, 0, 0.1); border:1px solid var(--yellow); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; color:var(--yellow); }
+    .admin-box, .reporte-box, .proyecto-box { width:95%; max-width:900px; height:85vh; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; overflow-y:auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .proyecto-box { height:auto; max-height:80vh; max-width:500px; }
+    .login-input { width:100%; padding:15px; background:#222; border:1px solid #333; color:#fff; margin-bottom:10px; border-radius:8px; font-size:16px; text-align:center; outline:none; transition:0.3s; }
+    .login-input:focus { border-color:var(--green); }
     
     /* LAYOUT & CARDS */
-    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-    .grid { display:grid; grid-template-columns: 300px 1fr 350px; gap:20px; height:100%; overflow:hidden; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:15px; display:flex; flex-direction:column; overflow:hidden; }
-    .card-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:15px; }
-    h2 { font-size:14px; color:var(--gray); text-transform:uppercase; margin:0; }
-    .big-number { font-size:32px; font-weight:800; letter-spacing:-1px; }
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--card); padding:15px; border-radius:12px; border:1px solid var(--border); }
+    .grid { display:grid; grid-template-columns: 350px 1fr 400px; gap:20px; height:100%; overflow:hidden; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); }
+    
+    .card-header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom:15px; }
+    h2 { font-size:14px; color:var(--gray); text-transform:uppercase; margin:0; letter-spacing:1px; font-weight:600; }
+    .big-number { font-size:28px; font-weight:700; color:#fff; }
+    
+    /* LISTAS */
     ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
-    li { display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #222; }
-    .meta-info { font-size:10px; color:#555; display:block; margin-top:2px; }
+    li { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #222; align-items:center; }
+    .meta-info { font-size:11px; color:#666; display:block; margin-top:4px; }
     
-    .btn { border:none; padding:12px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px; display:flex; justify-content:center; align-items:center; gap:8px; transition:0.2s; }
-    .btn:hover { opacity:0.8; }
+    /* BOTONES */
+    .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px; transition:0.2s; text-transform:uppercase; letter-spacing:0.5px; }
+    .btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
+    .btn:active { transform:translateY(1px); }
     .btn-green { background:var(--green); color:#000; } 
-    .btn-red { background:rgba(255,23,68,0.15); color:var(--red); border:1px solid var(--red); }
-    .btn-blue { background:rgba(41,121,255,0.15); color:var(--blue); border:1px solid var(--blue); }
-    .btn-gold { background:rgba(255, 215, 0, 0.15); color:#ffd700; border:1px solid #ffd700; }
-    .btn-small { padding:5px; width:auto; font-size:10px; }
+    .btn-red { background:rgba(239, 68, 68, 0.15); color:var(--red); border:1px solid var(--red); }
+    .btn-blue { background:rgba(59, 130, 246, 0.15); color:var(--blue); border:1px solid var(--blue); }
+    .btn-gold { background:var(--yellow); color:#000; }
+    .btn-small { padding:6px 10px; font-size:11px; }
     
-    /* EDITABLES & FILTERS */
-    .editable-item { display:flex; justify-content:space-between; align-items:center; background:#1a1a1a; padding:10px; border-radius:8px; margin-bottom:8px; }
-    .editable-actions { display:flex; gap:5px; opacity:0.3; transition:0.3s; }
+    /* EDITABLES */
+    .editable-item { display:flex; justify-content:space-between; align-items:center; background:#222; padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid #333; }
+    .editable-actions { display:flex; gap:5px; opacity:0; transition:0.3s; }
     .editable-item:hover .editable-actions { opacity:1; }
+
+    /* FILTROS Y FORMULARIOS */
     .filter-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
-    .filter-select { background:#000; color:#fff; border:1px solid #333; padding:10px; border-radius:6px; flex:1; }
+    .filter-select { background:#000; color:#fff; border:1px solid #333; padding:10px; border-radius:6px; flex:1; outline:none; }
+    input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:6px; margin-bottom:15px; box-sizing:border-box; outline:none; }
+    .form-row { display:flex; gap:10px; }
+
+    /* ESTILO PARA EL PDF (OCULTO EN PANTALLA) */
+    #reporte-imprimible {
+        display: none; /* Oculto normalmente */
+        background: white; color: black; padding: 40px; font-family: 'Helvetica', sans-serif;
+    }
+    .pdf-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+    .pdf-logo { font-size: 24px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+    .pdf-sub { font-size: 12px; color: #555; margin-top: 5px; }
+    .pdf-grid { display: flex; gap: 20px; margin-bottom: 30px; }
+    .pdf-card { flex: 1; background: #f4f4f5; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd; }
+    .pdf-card h3 { margin: 0 0 5px 0; font-size: 12px; color: #666; text-transform: uppercase; }
+    .pdf-card .val { font-size: 18px; font-weight: bold; }
+    .pdf-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .pdf-table th { background: #000; color: #fff; padding: 8px; text-align: left; }
+    .pdf-table td { border-bottom: 1px solid #ddd; padding: 8px; }
+    .pdf-table tr:nth-child(even) { background: #f9f9f9; }
+    .ingreso-txt { color: #16a34a; font-weight: bold; }
+    .gasto-txt { color: #dc2626; font-weight: bold; }
 
     /* MODAL REGISTRO */
-    #modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99; display:none; justify-content:center; align-items:center; backdrop-filter:blur(5px); }
+    #modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99; display:none; justify-content:center; align-items:center; }
     .modal-box { background:#151515; border:1px solid #333; width:400px; padding:25px; border-radius:12px; }
-    input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:6px; margin-bottom:15px; box-sizing:border-box; }
-    .form-row { display:flex; gap:10px; }
     .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
-    
-    @media (max-width: 1000px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } }
+
+    @media (max-width: 1200px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } }
 </style>
 </head>
 <body>
 
+<div id="reporte-imprimible">
+    <div class="pdf-header">
+        <div class="pdf-logo">ERP CTRFAM</div>
+        <div class="pdf-sub">Reporte Financiero Ejecutivo</div>
+        <div class="pdf-sub" id="pdf-fecha">Generado el: </div>
+        <div class="pdf-sub" id="pdf-usuario">Usuario: </div>
+    </div>
+    
+    <div class="pdf-grid">
+        <div class="pdf-card">
+            <h3>Ingresos Totales</h3>
+            <div class="val ingreso-txt" id="pdf-ing"></div>
+        </div>
+        <div class="pdf-card">
+            <h3>Gastos Totales</h3>
+            <div class="val gasto-txt" id="pdf-gas"></div>
+        </div>
+        <div class="pdf-card">
+            <h3>Utilidad Neta</h3>
+            <div class="val" id="pdf-net"></div>
+        </div>
+    </div>
+
+    <h4 style="border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;">Detalle de Movimientos</h4>
+    <table class="pdf-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Proyecto</th>
+                <th>Cuenta</th>
+                <th>Monto</th>
+            </tr>
+        </thead>
+        <tbody id="pdf-tabla-body">
+            </tbody>
+    </table>
+    <div style="margin-top: 30px; text-align: center; font-size: 10px; color: #aaa;">
+        Documento generado automáticamente por ERP CTRFAM. Uso confidencial.
+    </div>
+</div>
 <div id="login-overlay">
-    <div style="font-size:40px; margin-bottom:20px;">🛡️</div>
+    <div style="font-size:50px; margin-bottom:20px;">🛡️</div>
     <div class="login-box">
-        <h2 style="border:none; color:#fff;">ERP CTRFAM</h2>
+        <h2 style="border:none; color:#fff; letter-spacing:2px; margin-bottom:30px;">ACCESO SEGURO</h2>
         <input type="text" id="user" class="login-input" placeholder="Usuario">
         <input type="password" id="pass" class="login-input" placeholder="Contraseña">
-        <button class="btn btn-green" style="width:100%" onclick="doLogin()">ACCEDER</button>
-        <p id="loginError" style="color:var(--red); font-size:12px; display:none;">Acceso Denegado</p>
+        <button class="btn btn-green" style="width:100%; margin-top:20px;" onclick="doLogin()">ENTRAR AL SISTEMA</button>
+        <p id="loginError" style="color:var(--red); font-size:12px; display:none; margin-top:10px;">Credenciales incorrectas</p>
     </div>
 </div>
 
@@ -77,19 +142,19 @@
     <div class="admin-box">
         <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
             <h2 style="border:none; color:#fff; margin:0;">👥 Gestión de Personal</h2>
-            <button class="btn btn-red" style="width:auto; padding:5px 15px;" onclick="$('admin-overlay').style.display='none'">CERRAR</button>
+            <button class="btn btn-red btn-small" onclick="$('admin-overlay').style.display='none'">CERRAR</button>
         </div>
-        <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:20px;">
-            <h3 style="margin:0 0 10px 0; font-size:12px; color:var(--gray);">NUEVO COLABORADOR</h3>
+        <div style="background:#222; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid #333;">
+            <h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);">NUEVO COLABORADOR</h3>
             <input type="text" id="new_fullname" placeholder="Nombre Completo">
             <input type="text" id="new_user" placeholder="Usuario">
             <input type="text" id="new_pass" placeholder="Contraseña">
-            <div style="font-size:12px; margin-bottom:5px; color:#aaa;">Proyectos Permitidos:</div>
-            <div id="checklistProyectos" style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px;"></div>
-            <button class="btn btn-blue" onclick="guardarUsuario()">GUARDAR USUARIO</button>
+            <div style="font-size:12px; margin-bottom:10px; color:#aaa;">Proyectos Permitidos:</div>
+            <div id="checklistProyectos" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;"></div>
+            <button class="btn btn-blue" style="width:100%" onclick="guardarUsuario()">GUARDAR USUARIO</button>
         </div>
-        <div style="flex:1; overflow-y:auto;">
-            <h3 style="margin:0 0 10px 0; font-size:12px; color:var(--gray);">EQUIPO ACTUAL</h3>
+        <div style="flex:1;">
+            <h3 style="margin:0 0 15px 0; font-size:12px; color:var(--gray);">EQUIPO ACTUAL</h3>
             <ul id="listaUsuarios"></ul>
         </div>
     </div>
@@ -99,19 +164,25 @@
     <div class="proyecto-box">
         <h2 style="color:#fff; border:none; margin-bottom:20px;" id="proyModalTitle">Configurar Proyecto</h2>
         <input type="hidden" id="proyIdEdit">
-        <label>Nombre del Proyecto</label>
+        <label style="font-size:12px; color:#aaa;">Nombre del Proyecto</label>
         <input type="text" id="proyNombre" placeholder="Ej. Yayika ML">
-        <label style="color:var(--yellow); font-size:12px;">CUENTAS VINCULADAS (Solo estas cuentas serán visibles para los empleados asignados a este proyecto)</label>
-        <div id="checklistCuentasProy" style="background:#222; padding:10px; border-radius:8px; display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:20px;"></div>
-        <div class="form-row"><button class="btn btn-green" onclick="guardarActivoFull()">GUARDAR</button><button class="btn btn-red" onclick="$('proyecto-overlay').style.display='none'">CANCELAR</button></div>
+        <label style="color:var(--yellow); font-size:12px; margin-bottom:10px; display:block;">CUENTAS VINCULADAS (Privacidad)</label>
+        <div id="checklistCuentasProy" style="background:#222; padding:15px; border-radius:8px; display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:20px; border:1px solid #333;"></div>
+        <div class="form-row">
+            <button class="btn btn-green" style="flex:1" onclick="guardarActivoFull()">GUARDAR</button>
+            <button class="btn btn-red" style="flex:1" onclick="$('proyecto-overlay').style.display='none'">CANCELAR</button>
+        </div>
     </div>
 </div>
 
 <div id="reporte-overlay">
     <div class="reporte-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="border:none; margin:0; font-size:20px; color:#fff;">📊 Inteligencia de Negocios</h2>
-            <button class="btn btn-red" style="width:auto; padding:5px 15px;" onclick="cerrarReportes()">X CERRAR</button>
+            <h2 style="border:none; margin:0; font-size:20px; color:#fff;">📊 Reportes Ejecutivos</h2>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-gold" onclick="descargarPDF()">📥 DESCARGAR PDF</button>
+                <button class="btn btn-red" onclick="cerrarReportes()">CERRAR</button>
+            </div>
         </div>
         <div class="filter-bar">
             <select id="filtroAnio" class="filter-select" onchange="actualizarReporte()"><option value="2026">2026</option><option value="2025">2025</option></select>
@@ -120,26 +191,39 @@
             </select>
             <select id="filtroProyecto" class="filter-select" onchange="actualizarReporte()"><option value="todos">Todos mis Proyectos</option></select>
         </div>
-        <div style="flex:1; position:relative;"><canvas id="chartReporteMain"></canvas></div>
-        <div style="display:flex; gap:20px; margin-top:20px; border-top:1px solid #333; padding-top:15px;">
-            <div style="text-align:center; flex:1;"><div style="color:var(--green); font-weight:bold;">INGRESOS</div><div id="repIng" style="font-size:20px;">$0.00</div></div>
-            <div style="text-align:center; flex:1;"><div style="color:var(--red); font-weight:bold;">GASTOS</div><div id="repGas" style="font-size:20px;">$0.00</div></div>
-            <div style="text-align:center; flex:1;"><div style="color:#fff; font-weight:bold;">NETO</div><div id="repNeto" style="font-size:20px;">$0.00</div></div>
+        
+        <div style="display:flex; gap:20px; margin-bottom:20px;">
+            <div class="card" style="flex:1; text-align:center; padding:15px;">
+                <div style="color:var(--green); font-size:12px; font-weight:bold;">INGRESOS</div>
+                <div id="repIng" style="font-size:24px; font-weight:bold;">$0.00</div>
+            </div>
+            <div class="card" style="flex:1; text-align:center; padding:15px;">
+                <div style="color:var(--red); font-size:12px; font-weight:bold;">GASTOS</div>
+                <div id="repGas" style="font-size:24px; font-weight:bold;">$0.00</div>
+            </div>
+            <div class="card" style="flex:1; text-align:center; padding:15px;">
+                <div style="color:#fff; font-size:12px; font-weight:bold;">UTILIDAD</div>
+                <div id="repNeto" style="font-size:24px; font-weight:bold;">$0.00</div>
+            </div>
         </div>
+
+        <div style="flex:1; position:relative; min-height:300px;"><canvas id="chartReporteMain"></canvas></div>
     </div>
 </div>
 
 <div class="top-bar">
-    <div>
-        <div style="font-size:12px; color:var(--gray); font-weight:600;">PATRIMONIO VISIBLE (TUYO)</div>
-        <div class="big-number" id="totalPatrimonio">---</div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <div style="font-size:24px;">🦁</div> <div>
+            <div style="font-size:11px; color:var(--gray); font-weight:600; letter-spacing:1px;">PATRIMONIO TOTAL</div>
+            <div class="big-number" id="totalPatrimonio">---</div>
+        </div>
     </div>
     <div style="display:flex; gap:10px;">
-        <button class="btn btn-gold" id="btnReportes" style="display:none; width:auto; padding:10px 20px;" onclick="abrirReportes()">📊 REPORTES</button>
-        <button class="btn btn-blue" id="btnAdmin" style="display:none; width:auto; padding:10px 20px;" onclick="abrirAdmin()">⚙️ PERSONAL</button>
-        <button class="btn btn-green" style="width:auto; padding:10px 20px;" onclick="openModal('ingreso')">⬆ INGRESAR</button>
-        <button class="btn btn-red" style="width:auto; padding:10px 20px;" onclick="openModal('gasto')">⬇ GASTAR</button>
-        <button class="btn" style="width:auto; background:#333; color:#fff;" onclick="logout()">🔓 SALIR</button>
+        <button class="btn btn-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
+        <button class="btn btn-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ PERSONAL</button>
+        <button class="btn btn-green" onclick="openModal('ingreso')">⬆ INGRESAR</button>
+        <button class="btn btn-red" onclick="openModal('gasto')">⬇ GASTAR</button>
+        <button class="btn" style="background:#333; color:#fff;" onclick="logout()">🔓 SALIR</button>
     </div>
 </div>
 
@@ -147,37 +231,46 @@
 
 <div class="grid">
     <div class="card">
-        <div class="card-header"><h2>🏦 Cuentas Visibles</h2><button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+ AGREGAR</button></div>
+        <div class="card-header">
+            <h2>🏦 Cuentas</h2>
+            <button class="btn btn-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+ CREAR</button>
+        </div>
         <div id="listCuentas"></div>
     </div>
     <div class="card">
-        <div class="card-header"><h2>🚀 Proyectos</h2><button class="btn btn-blue btn-small" id="btnAddProy" style="display:none;" onclick="abrirModalProyecto()">+ AGREGAR</button></div>
-        <div style="display:grid; grid-template-columns:1fr; gap:5px; margin-bottom:15px;" id="gridActivos"></div>
+        <div class="card-header">
+            <h2>🚀 Proyectos</h2>
+            <button class="btn btn-blue btn-small" id="btnAddProy" style="display:none;" onclick="abrirModalProyecto()">+ CREAR</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:15px;" id="gridActivos"></div>
         <div style="flex:1; border-top:1px solid #222; padding-top:10px;"><canvas id="chartActivos"></canvas></div>
     </div>
     <div class="card">
-        <div class="card-header"><h2>📝 Auditoría</h2></div>
+        <div class="card-header"><h2>📝 Últimos Movimientos</h2></div>
         <ul id="listMovs"></ul>
     </div>
 </div>
 
 <div id="modal">
     <div class="modal-box">
-        <h2 id="modalTitle" style="color:var(--text); border:none;">Registrar</h2>
-        <label>Descripción</label><input type="text" id="desc">
+        <h2 id="modalTitle" style="color:var(--text); border:none; margin-bottom:20px;">Registrar Movimiento</h2>
+        <label style="font-size:12px; color:#aaa;">Concepto</label>
+        <input type="text" id="desc" placeholder="Ej. Pago de nómina">
         <div class="form-row">
-            <div style="flex:1"><label>Monto ($)</label><input type="number" id="monto"></div>
-            <div style="flex:1"><label>Tipo</label><input type="text" id="tipoTxt" readonly style="color:#888;"></div>
+            <div style="flex:1"><label style="font-size:12px; color:#aaa;">Monto ($)</label><input type="number" id="monto"></div>
+            <div style="flex:1"><label style="font-size:12px; color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly style="color:#888;"></div>
         </div>
         <div id="divReembolso" class="checkbox-wrapper" style="display:none;">
             <input type="checkbox" id="chkReembolso" style="width:auto; margin:0;">
-            <label for="chkReembolso" style="color:var(--yellow); font-size:12px; margin:0;">⚠️ Marcar como "Esperando Reembolso"</label>
+            <label for="chkReembolso" style="color:var(--yellow); font-size:12px; margin:0;">⚠️ Pendiente de Reembolso</label>
         </div>
-        <label>Cuenta</label><select id="selCuenta"></select>
-        <label>Proyecto</label><select id="selActivo"></select>
+        <label style="font-size:12px; color:#aaa;">Cuenta de Origen/Destino</label>
+        <select id="selCuenta"></select>
+        <label style="font-size:12px; color:#aaa;">Proyecto Asociado</label>
+        <select id="selActivo"></select>
         <div class="form-row" style="margin-top:20px;">
-            <button class="btn btn-green" onclick="guardarMovimiento()">GUARDAR</button>
-            <button class="btn btn-red" onclick="closeModal()">CANCELAR</button>
+            <button class="btn btn-green" style="flex:1" onclick="guardarMovimiento()">CONFIRMAR</button>
+            <button class="btn btn-red" style="flex:1" onclick="closeModal()">CANCELAR</button>
         </div>
     </div>
 </div>
@@ -189,6 +282,7 @@ let CURRENT_USER = '';
 let IS_ADMIN = false;
 let currentTipo = 'ingreso';
 let chartRef, reportChartRef;
+let REPORT_DATA_CACHE = null; // Para guardar datos para el PDF
 
 async function doLogin() {
     const user = $('user').value; const pass = $('pass').value;
@@ -202,126 +296,116 @@ async function doLogin() {
 function logout() { location.reload(); }
 
 async function loadData() {
-    try {
-        const res = await fetch(`/api/data?user=${CURRENT_USER}`); DATA = await res.json(); renderAll(); populateFilters();
-    } catch(e) { console.error("Error cargando"); }
+    try { const res = await fetch(`/api/data?user=${CURRENT_USER}`); DATA = await res.json(); renderAll(); populateFilters(); } catch(e) { console.error("Error cargando"); }
 }
 
 function renderAll() {
-    // BOTON DE REPORTES: AHORA SIEMPRE VISIBLE PARA TODOS
     $('btnReportes').style.display = 'flex'; 
-    // PATRIMONIO: SIEMPRE VISIBLE PARA TODOS (YA ESTA FILTRADO DESDE EL SERVER)
     $('totalPatrimonio').innerText = fmtMoney(DATA.patrimonio);
-
-    if(IS_ADMIN) {
-        $('btnAdmin').style.display = 'flex'; 
-        $('btnAddProy').style.display = 'block'; $('btnAddCta').style.display = 'block';
-    } else {
-        $('btnAdmin').style.display = 'none'; 
-        $('btnAddProy').style.display = 'none'; $('btnAddCta').style.display = 'none';
-    }
+    if(IS_ADMIN) { $('btnAdmin').style.display = 'flex'; $('btnAddProy').style.display = 'block'; $('btnAddCta').style.display = 'block'; }
+    else { $('btnAdmin').style.display = 'none'; $('btnAddProy').style.display = 'none'; $('btnAddCta').style.display = 'none'; }
 
     const radar = $('radar-alertas'); radar.innerHTML = '';
     if(DATA.pendientes && DATA.pendientes.length > 0) {
         radar.style.display = 'flex';
         DATA.pendientes.forEach(m => {
             const item = document.createElement('div'); item.className = 'alerta-item';
-            item.innerHTML = `<div><strong>⚠️ REEMBOLSO PENDIENTE: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion} (${m.activo_id?.nombre})</span></div><button class="btn btn-green" style="padding:5px 10px; width:auto;" onclick="confirmarReembolso('${m._id}')">✅ CONFIRMAR</button>`;
+            item.innerHTML = `<div><strong>⚠️ REEMBOLSO PENDIENTE: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion} (${m.activo_id?.nombre})</span></div><button class="btn btn-green btn-small" onclick="confirmarReembolso('${m._id}')">✅ LLEGÓ</button>`;
             radar.appendChild(item);
         });
     } else { radar.style.display = 'none'; }
 
-    $('listCuentas').innerHTML = DATA.cuentas.map(c => `
-        <div class="editable-item">
-            <div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold; margin-left:10px;">${fmtMoney(c.saldo)}</span></div>
-            ${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>` : ''}
-        </div>`).join('');
+    $('listCuentas').innerHTML = DATA.cuentas.map(c => `<div class="editable-item"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold; margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>` : ''}</div>`).join('');
     
-    $('gridActivos').innerHTML = DATA.activos.map(a => `
-        <div class="editable-item" style="background:#151515; border:1px solid #333;">
-            <div style="flex:1;">
-                <div style="font-size:11px; color:#888;">${a.icono} ${a.nombre}</div>
-                <div style="font-size:15px; font-weight:bold; color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div>
-                ${IS_ADMIN && a.cuentas_asociadas ? `<div style="font-size:9px; color:#555;">Cuentas: ${a.cuentas_asociadas.map(c=>c.nombre).join(', ')}</div>` : ''}
-            </div>
-            ${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="abrirModalProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div>` : ''}
-        </div>`).join('');
+    $('gridActivos').innerHTML = DATA.activos.map(a => `<div class="editable-item" style="background:#151515; border:1px solid #333;"><div style="flex:1;"><div style="font-size:11px; color:#888;">${a.icono} ${a.nombre}</div><div style="font-size:15px; font-weight:bold; color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="abrirModalProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div>` : ''}</div>`).join('');
     
     $('listMovs').innerHTML = DATA.movimientos.map(m => {
-        let color = m.tipo=='ingreso'?'var(--green)':'var(--red)';
-        if(m.estado === 'pendiente_reembolso') color = 'var(--yellow)'; if(m.estado === 'reembolsado') color = '#555';
-        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block; font-size:13px; font-weight:600;">${m.descripcion} ${m.estado==='reembolsado'?'(DEVUELTO)':''}</span><span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span></div><span style="font-weight:bold; color:${color}">${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}</span></li>`
+        let color = m.tipo=='ingreso'?'var(--green)':'var(--red)'; if(m.estado === 'pendiente_reembolso') color = 'var(--yellow)'; if(m.estado === 'reembolsado') color = '#555';
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block; font-size:13px; font-weight:600;">${m.descripcion}</span><span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span></div><span style="font-weight:bold; color:${color}">${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}</span></li>`
     }).join('');
     
     updateChart(); populateSelects();
 }
 
-function abrirModalProyecto(id = null) {
-    $('proyecto-overlay').style.display='flex'; $('proyIdEdit').value = id || '';
-    const container = $('checklistCuentasProy');
-    container.innerHTML = DATA.cuentas.map(c => `<div style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"> <label for="chk_cta_${c._id}" style="font-size:12px; cursor:pointer;">${c.nombre}</label></div>`).join('');
-    if(id) {
-        const proy = DATA.activos.find(a => a._id === id); $('proyModalTitle').innerText = "Editar Proyecto"; $('proyNombre').value = proy.nombre;
-        if(proy.cuentas_asociadas) proy.cuentas_asociadas.forEach(c => { const chk = document.getElementById(`chk_cta_${c._id}`); if(chk) chk.checked = true; });
-    } else { $('proyModalTitle').innerText = "Nuevo Proyecto"; $('proyNombre').value = ''; }
-}
-
-async function guardarActivoFull() {
-    const id = $('proyIdEdit').value; const nombre = $('proyNombre').value; const checks = document.querySelectorAll('.chk-cta-proy:checked'); const cuentas = Array.from(checks).map(c => c.value);
-    if(!nombre) return alert("Nombre obligatorio");
-    const url = id ? `/api/activos/${id}` : '/api/activos'; const method = id ? 'PUT' : 'POST';
-    await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({nombre, cuentas})});
-    $('proyecto-overlay').style.display='none'; loadData();
-}
-async function borrarActivo(id) { if(confirm("¿Eliminar proyecto?")) { await fetch(`/api/activos/${id}`, {method:'DELETE'}); loadData(); }}
-
-async function crearCuenta() { const n = prompt("Nombre Cuenta:"); if(n) { await fetch('/api/cuentas', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})}); loadData(); }}
-async function editarCuenta(id, nOld) { const n = prompt("Nuevo nombre:", nOld); if(n) { await fetch(`/api/cuentas/${id}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})}); loadData(); }}
-async function borrarCuenta(id) { if(confirm("¿Eliminar cuenta?")) { await fetch(`/api/cuentas/${id}`, {method:'DELETE'}); loadData(); }}
-
-async function abrirAdmin() { $('admin-overlay').style.display='flex'; cargarUsuariosUI(); }
-async function cargarUsuariosUI() {
-    const res = await fetch('/api/usuarios'); const users = await res.json();
-    $('checklistProyectos').innerHTML = DATA.activos.map(a => `<div style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}"> <span style="font-size:12px; color:#aaa;">${a.nombre}</span></div>`).join('');
-    $('listaUsuarios').innerHTML = users.map(u => `<li style="display:flex; justify-content:space-between; align-items:center;"><div><strong style="color:${u.es_admin?'var(--green)':'#fff'}">${u.nombre_completo||u.user}</strong><div style="font-size:10px; color:#aaa;">${u.user} | ${u.es_admin?'ADMIN':(u.proyectos_permitidos.map(p=>p.nombre).join(', ')||'Sin acceso')}</div></div>${!u.es_admin ? `<button class="btn btn-red" style="padding:5px;" onclick="borrarUsuario('${u._id}')">🗑️</button>` : ''}</li>`).join('');
-}
-async function guardarUsuario() {
-    const fullname=$('new_fullname').value; const user=$('new_user').value; const pass=$('new_pass').value;
-    const checks=document.querySelectorAll('.chk-proy:checked'); const proys=Array.from(checks).map(c=>c.value);
-    if(!user||!pass) return alert("Faltan datos");
-    await fetch('/api/usuarios', { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'crear',user,pass,nombre_completo:fullname,proyectos:proys})});
-    $('new_fullname').value=''; $('new_user').value=''; $('new_pass').value=''; cargarUsuariosUI();
-}
-async function borrarUsuario(id) { if(confirm("Eliminar?")) { await fetch('/api/usuarios', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'borrar',id})}); cargarUsuariosUI(); } }
-
-async function guardarMovimiento() {
-    const desc = $('desc').value; const monto = parseFloat($('monto').value); const cuenta_id = $('selCuenta').value; const activo_id = $('selActivo').value || null; const esReembolso = $('chkReembolso').checked;
-    let estado = 'finalizado'; if(currentTipo === 'gasto' && esReembolso) estado = 'pendiente_reembolso';
-    if(!desc || !monto || !cuenta_id) return alert("Faltan datos");
-    const res = await fetch('/api/movimiento', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ descripcion:desc, monto, cuenta_id, activo_id, tipo:currentTipo, estado, usuario_actual: CURRENT_USER }) });
-    const json = await res.json(); if(json.error) return alert(json.error); closeModal(); loadData();
-}
-async function confirmarReembolso(id) { if(!confirm("Confirmar recepción?")) return; await fetch('/api/confirmar-reembolso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mov_id: id, usuario_actual: CURRENT_USER }) }); loadData(); }
-
-// --- REPORTES ---
+// --- LOGICA PDF Y REPORTES ---
 function abrirReportes() { $('reporte-overlay').style.display = 'flex'; actualizarReporte(); }
 function cerrarReportes() { $('reporte-overlay').style.display = 'none'; }
 function populateFilters() { $('filtroProyecto').innerHTML = '<option value="todos">Todos mis Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
+
 async function actualizarReporte() {
     const anio = $('filtroAnio').value; const mes = $('filtroMes').value; const activo_id = $('filtroProyecto').value;
-    // ENVIAMOS EL USUARIO ACTUAL PARA QUE EL BACKEND FILTRE POR SEGURIDAD
     const res = await fetch('/api/reporte', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ anio, mes, activo_id, user: CURRENT_USER }) });
     const reporte = await res.json();
+    REPORT_DATA_CACHE = reporte; // Guardar para PDF
+
     $('repIng').innerText = fmtMoney(reporte.ingresos); $('repGas').innerText = fmtMoney(reporte.gastos); $('repNeto').innerText = fmtMoney(reporte.neto); $('repNeto').style.color = reporte.neto >= 0 ? 'var(--green)' : 'var(--red)';
     const ctx = $('chartReporteMain').getContext('2d'); if(reportChartRef) reportChartRef.destroy();
-    reportChartRef = new Chart(ctx, { type: 'bar', data: { labels: ['Ingresos', 'Gastos', 'Neto'], datasets: [{ label: 'Flujo', data: [reporte.ingresos, reporte.gastos, reporte.neto], backgroundColor: ['#00e676', '#ff1744', '#2979ff'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' }, ticks: { color: '#888' } } } } });
+    reportChartRef = new Chart(ctx, { type: 'bar', data: { labels: ['Ingresos', 'Gastos', 'Neto'], datasets: [{ label: 'Flujo', data: [reporte.ingresos, reporte.gastos, reporte.neto], backgroundColor: ['#22c55e', '#ef4444', '#3b82f6'], borderRadius:5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#333' } }, x: { grid: { display: false } } } } });
 }
 
-const fmtMoney = num => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
-function openModal(t) { currentTipo=t; $('modal').style.display='flex'; $('tipoTxt').value=t.toUpperCase(); $('desc').value=''; $('monto').value=''; if(t === 'gasto') $('divReembolso').style.display = 'flex'; else $('divReembolso').style.display = 'none'; $('chkReembolso').checked = false; }
-function closeModal() { $('modal').style.display='none'; }
-function populateSelects() { $('selCuenta').innerHTML = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join(''); $('selActivo').innerHTML = (IS_ADMIN ? `<option value="">-- Personal --</option>` : '') + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
-function updateChart() { const ctx = $('chartActivos').getContext('2d'); if(chartRef) chartRef.destroy(); const activos = DATA.activos.filter(a => a.balance_total > 0); chartRef = new Chart(ctx, { type:'doughnut', data:{ labels:activos.map(a=>a.nombre), datasets:[{data:activos.map(a=>a.balance_total), borderWidth:0, backgroundColor:['#00e676','#2979ff','#ff1744','#ffd700']}] }, options:{responsive:true, plugins:{legend:{position:'right', labels:{color:'#fff',boxWidth:10}}}} }); }
+function descargarPDF() {
+    if (!REPORT_DATA_CACHE) return alert("Carga el reporte primero");
+
+    // 1. Llenar el HTML Oculto
+    $('pdf-fecha').innerText = "Fecha de Emisión: " + new Date().toLocaleDateString();
+    $('pdf-usuario').innerText = "Solicitado por: " + CURRENT_USER;
+    $('pdf-ing').innerText = fmtMoney(REPORT_DATA_CACHE.ingresos);
+    $('pdf-gas').innerText = fmtMoney(REPORT_DATA_CACHE.gastos);
+    $('pdf-net').innerText = fmtMoney(REPORT_DATA_CACHE.neto);
+
+    // Llenar tabla
+    const tbody = $('pdf-tabla-body');
+    tbody.innerHTML = '';
+    if(REPORT_DATA_CACHE.detalles) {
+        REPORT_DATA_CACHE.detalles.forEach(m => {
+            const tr = document.createElement('tr');
+            const fecha = new Date(m.fecha).toLocaleDateString();
+            const tipoColor = m.tipo === 'ingreso' ? 'green' : 'red';
+            tr.innerHTML = `
+                <td>${fecha}</td>
+                <td>${m.descripcion}</td>
+                <td>${m.activo_id ? m.activo_id.nombre : '-'}</td>
+                <td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td>
+                <td style="color:${tipoColor}; font-weight:bold;">${fmtMoney(Math.abs(m.monto))}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 2. Generar PDF
+    const element = document.getElementById('reporte-imprimible');
+    element.style.display = 'block'; // Mostrar temporalmente
+    const opt = {
+        margin:       10,
+        filename:     `Reporte_Financiero_${new Date().toISOString().slice(0,10)}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    html2pdf().from(element).set(opt).save().then(() => {
+        element.style.display = 'none'; // Volver a ocultar
+    });
+}
+
+// --- CRUD & LOGICA (Igual) ---
+function abrirModalProyecto(id=null) { $('proyecto-overlay').style.display='flex'; $('proyIdEdit').value=id||''; $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:10px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><label for="chk_cta_${c._id}" style="color:#fff;cursor:pointer;">${c.nombre}</label></div>`).join(''); if(id){const p=DATA.activos.find(a=>a._id===id);$('proyModalTitle').innerText="Editar";$('proyNombre').value=p.nombre;if(p.cuentas_asociadas)p.cuentas_asociadas.forEach(c=>{const k=document.getElementById(`chk_cta_${c._id}`);if(k)k.checked=true;});}else{$('proyModalTitle').innerText="Nuevo";$('proyNombre').value='';} }
+async function guardarActivoFull(){const id=$('proyIdEdit').value;const n=$('proyNombre').value;const cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value);if(!n)return;const u=id?`/api/activos/${id}`:'/api/activos';const m=id?'PUT':'POST';await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})});$('proyecto-overlay').style.display='none';loadData();}
+async function borrarActivo(id){if(confirm("Borrar?"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData();}
+async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function borrarCuenta(id){if(confirm("Borrar?"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
+async function abrirAdmin(){$('admin-overlay').style.display='flex';cargarUsuariosUI();}
+async function cargarUsuariosUI(){const r=await fetch('/api/usuarios');const u=await r.json();$('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}"><span style="font-size:12px;color:#ccc;">${a.nombre}</span></div>`).join('');$('listaUsuarios').innerHTML=u.map(x=>`<li><div><strong style="color:${x.es_admin?'var(--green)':'#fff'}">${x.nombre_completo}</strong><div style="font-size:11px;color:#666;">${x.user}</div></div>${!x.es_admin?`<button class="btn btn-red btn-small" onclick="borrarUsuario('${x._id}')">ELIMINAR</button>`:''}</li>`).join('');}
+async function guardarUsuario(){const f=$('new_fullname').value,u=$('new_user').value,p=$('new_pass').value,ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);if(!u||!p)return;await fetch('/api/usuarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'crear',user:u,pass:p,nombre_completo:f,proyectos:ps})});$('new_fullname').value='';$('new_user').value='';$('new_pass').value='';cargarUsuariosUI();}
+async function borrarUsuario(id){if(confirm("Eliminar?"))await fetch('/api/usuarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'borrar',id})});cargarUsuariosUI();}
+async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m||!c)return;const res=await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,usuario_actual:CURRENT_USER})});closeModal();loadData();}
+async function confirmarReembolso(id){if(!confirm("Llegó?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
+const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
+function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none';$('chkReembolso').checked=false;}
+function closeModal(){$('modal').style.display='none';}
+function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
+function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
 </script>
 </body>
 </html>
