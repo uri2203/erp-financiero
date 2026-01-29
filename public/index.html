@@ -9,16 +9,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; }
+    :root { --bg:#09090b; --card:#18181b; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
     /* MODALS */
-    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-    #admin-overlay, #reporte-overlay, #proyecto-overlay { display:none; }
+    #login-overlay, #admin-overlay, #reporte-overlay, #proyecto-overlay, #traspaso-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+    #admin-overlay, #reporte-overlay, #proyecto-overlay, #traspaso-overlay { display:none; }
     
     .login-box { width:300px; text-align:center; }
-    .admin-box, .reporte-box, .proyecto-box { width:95%; max-width:900px; height:85vh; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; overflow-y:auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-    .proyecto-box { height:auto; max-height:80vh; max-width:500px; }
+    .admin-box, .reporte-box, .proyecto-box, .modal-box { width:95%; max-width:900px; height:auto; max-height:85vh; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; overflow-y:auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .proyecto-box, .modal-box { max-width:500px; }
     .login-input { width:100%; padding:15px; background:#222; border:1px solid #333; color:#fff; margin-bottom:10px; border-radius:8px; font-size:16px; text-align:center; outline:none; transition:0.3s; }
     .login-input:focus { border-color:var(--green); }
     
@@ -31,31 +31,25 @@
     h2 { font-size:14px; color:var(--gray); text-transform:uppercase; margin:0; letter-spacing:1px; font-weight:600; }
     .big-number { font-size:28px; font-weight:700; color:#fff; }
     
-    /* LISTAS */
-    ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
-    li { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #222; align-items:center; }
-    .meta-info { font-size:11px; color:#666; display:block; margin-top:4px; }
-    
     /* BOTONES */
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; display:flex; justify-content:center; align-items:center; gap:8px; transition:0.2s; text-transform:uppercase; letter-spacing:0.5px; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
-    .btn:active { transform:translateY(1px); }
     .btn-green { background:var(--green); color:#000; } 
     .btn-red { background:rgba(239, 68, 68, 0.15); color:var(--red); border:1px solid var(--red); }
     .btn-blue { background:rgba(59, 130, 246, 0.15); color:var(--blue); border:1px solid var(--blue); }
+    .btn-cyan { background:var(--cyan); color:#000; }
     .btn-gold { background:var(--yellow); color:#000; }
     .btn-small { padding:6px 10px; font-size:11px; }
     
-    /* EDITABLES */
+    /* OTROS */
     .editable-item { display:flex; justify-content:space-between; align-items:center; background:#222; padding:12px; border-radius:8px; margin-bottom:10px; border:1px solid #333; }
     .editable-actions { display:flex; gap:5px; opacity:0; transition:0.3s; }
     .editable-item:hover .editable-actions { opacity:1; }
-
-    /* FILTROS Y FORMULARIOS */
-    .filter-bar { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
-    .filter-select { background:#000; color:#fff; border:1px solid #333; padding:10px; border-radius:6px; flex:1; outline:none; }
     input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:6px; margin-bottom:15px; box-sizing:border-box; outline:none; }
     .form-row { display:flex; gap:10px; }
+    ul { list-style:none; padding:0; margin:0; overflow-y:auto; flex:1; }
+    li { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #222; align-items:center; }
+    .meta-info { font-size:11px; color:#666; display:block; margin-top:4px; }
 
     /* PDF ESTILOS */
     #reporte-imprimible { display: none; background: white; color: black; padding: 40px; font-family: 'Helvetica', sans-serif; }
@@ -73,11 +67,7 @@
     .ingreso-txt { color: #16a34a; font-weight: bold; }
     .gasto-txt { color: #dc2626; font-weight: bold; }
 
-    /* MODAL REGISTRO */
-    #modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99; display:none; justify-content:center; align-items:center; }
-    .modal-box { background:#151515; border:1px solid #333; width:400px; padding:25px; border-radius:12px; }
     .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
-
     @media (max-width: 1200px) { .grid { grid-template-columns:1fr; grid-template-rows: auto auto auto; overflow-y:auto; } body { overflow-y:auto; height:auto; } }
 </style>
 </head>
@@ -144,6 +134,28 @@
     </div>
 </div>
 
+<div id="traspaso-overlay">
+    <div class="modal-box">
+        <h2 style="color:#fff; border:none; margin-bottom:20px;">Transferencia entre Cuentas</h2>
+        <label style="font-size:12px; color:#aaa;">Monto a transferir ($)</label>
+        <input type="number" id="trasMonto" placeholder="0.00">
+        
+        <label style="font-size:12px; color:#aaa;">Cuenta Origen (Sale dinero)</label>
+        <select id="trasOrigen"></select>
+        
+        <label style="font-size:12px; color:#aaa;">Cuenta Destino (Entra dinero)</label>
+        <select id="trasDestino"></select>
+        
+        <label style="font-size:12px; color:#aaa;">Nota / Referencia</label>
+        <input type="text" id="trasDesc" placeholder="Ej. Depósito de ganancias ML">
+
+        <div class="form-row" style="margin-top:20px;">
+            <button class="btn btn-cyan" style="flex:1" onclick="ejecutarTraspaso()">CONFIRMAR TRASPASO</button>
+            <button class="btn btn-red" style="flex:1" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button>
+        </div>
+    </div>
+</div>
+
 <div id="reporte-overlay">
     <div class="reporte-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -170,7 +182,7 @@
         <div class="big-number" id="totalPatrimonio">---</div>
     </div>
     <div style="display:flex; gap:10px;">
-        <button class="btn btn-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
+        <button class="btn btn-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button> <button class="btn btn-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn btn-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ PERSONAL</button>
         <button class="btn btn-green" onclick="openModal('ingreso')">⬆ INGRESAR</button>
         <button class="btn btn-red" onclick="openModal('gasto')">⬇ GASTAR</button>
@@ -232,14 +244,34 @@ function renderAll() {
     if(DATA.pendientes && DATA.pendientes.length > 0) { radar.style.display = 'flex'; DATA.pendientes.forEach(m => { const item = document.createElement('div'); item.className = 'alerta-item'; item.innerHTML = `<div><strong>⚠️ REEMBOLSO PENDIENTE: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion} (${m.activo_id?.nombre})</span></div><button class="btn btn-green btn-small" onclick="confirmarReembolso('${m._id}')">✅ LLEGÓ</button>`; radar.appendChild(item); }); } else { radar.style.display = 'none'; }
     $('listCuentas').innerHTML = DATA.cuentas.map(c => `<div class="editable-item"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold; margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>` : ''}</div>`).join('');
     $('gridActivos').innerHTML = DATA.activos.map(a => `<div class="editable-item" style="background:#151515; border:1px solid #333;"><div style="flex:1;"><div style="font-size:11px; color:#888;">${a.icono} ${a.nombre}</div><div style="font-size:15px; font-weight:bold; color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>${IS_ADMIN ? `<div class="editable-actions"><button class="btn btn-blue btn-small" onclick="abrirModalProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div>` : ''}</div>`).join('');
-    $('listMovs').innerHTML = DATA.movimientos.map(m => { let color = m.tipo=='ingreso'?'var(--green)':'var(--red)'; if(m.estado === 'pendiente_reembolso') color = 'var(--yellow)'; if(m.estado === 'reembolsado') color = '#555'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block; font-size:13px; font-weight:600;">${m.descripcion}</span><span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span></div><span style="font-weight:bold; color:${color}">${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}</span></li>` }).join('');
+    $('listMovs').innerHTML = DATA.movimientos.map(m => { 
+        let color = m.tipo=='ingreso'?'var(--green)':'var(--red)'; 
+        if(m.estado === 'pendiente_reembolso') color = 'var(--yellow)'; 
+        if(m.estado === 'reembolsado') color = '#555';
+        if(m.tipo.includes('traspaso')) color = 'var(--cyan)';
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block; font-size:13px; font-weight:600;">${m.descripcion}</span><span class="meta-info">👤 ${m.creado_por} | 📂 ${m.activo_id?m.activo_id.nombre:'General'}</span></div><span style="font-weight:bold; color:${color}">${m.tipo=='ingreso'?'+':''}${fmtMoney(m.monto)}</span></li>` 
+    }).join('');
     updateChart(); populateSelects();
+}
+
+// LOGICA TRASPASOS (NUEVA)
+function abrirTraspaso() {
+    $('traspaso-overlay').style.display = 'flex';
+    const opts = DATA.cuentas.map(c => `<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
+    $('trasOrigen').innerHTML = opts;
+    $('trasDestino').innerHTML = opts;
+}
+async function ejecutarTraspaso() {
+    const o = $('trasOrigen').value; const d = $('trasDestino').value; const m = $('trasMonto').value; const desc = $('trasDesc').value;
+    if(!o || !d || !m) return alert("Faltan datos");
+    if(o === d) return alert("Origen y Destino no pueden ser iguales");
+    await fetch('/api/traspaso', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({origen_id:o, destino_id:d, monto:m, descripcion:desc, usuario_actual:CURRENT_USER})});
+    $('traspaso-overlay').style.display='none'; loadData();
 }
 
 function abrirReportes() { $('reporte-overlay').style.display = 'flex'; actualizarReporte(); }
 function cerrarReportes() { $('reporte-overlay').style.display = 'none'; }
 function populateFilters() { $('filtroProyecto').innerHTML = '<option value="todos">Todos mis Proyectos</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); }
-
 async function actualizarReporte() {
     const anio = $('filtroAnio').value; const mes = $('filtroMes').value; const activo_id = $('filtroProyecto').value;
     const res = await fetch('/api/reporte', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ anio, mes, activo_id, user: CURRENT_USER }) });
