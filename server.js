@@ -5,7 +5,6 @@ const mongoose = require('mongoose');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://invitado:noc123@cluster0.dummy.mongodb.net/finanzas_db";
 
 app.use(cors());
@@ -14,16 +13,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP Financiero Conectado");
-        inicializarUsuarioMaestro();
+        console.log("✅ ERP Empresarial Conectado");
+        inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
 
 // --- MODELOS ---
+const UsuarioSchema = new mongoose.Schema({
+    user: { type: String, required: true, unique: true },
+    pass: { type: String, required: true },
+    es_admin: { type: Boolean, default: false },
+    proyectos_permitidos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Activo' }] // Lista de IDs permitidos
+});
+
 const CuentaSchema = new mongoose.Schema({
     nombre: { type: String, required: true },
     saldo: { type: Number, default: 0 },
-    tipo: { type: String, default: 'banco' }, 
     icono: { type: String, default: '💳' }
 });
 
@@ -39,12 +44,10 @@ const MovimientoSchema = new mongoose.Schema({
     monto: Number,
     cuenta_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cuenta' },
     activo_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Activo' },
-    tipo: { type: String, enum: ['ingreso', 'gasto'] }
-});
-
-const UsuarioSchema = new mongoose.Schema({
-    user: { type: String, required: true, unique: true },
-    pass: { type: String, required: true }
+    tipo: { type: String, enum: ['ingreso', 'gasto'] },
+    // NUEVO: Para el Radar de Reembolsos y Auditoría
+    estado: { type: String, default: 'finalizado', enum: ['finalizado', 'pendiente_reembolso', 'reembolsado'] },
+    creado_por: { type: String, default: 'Sistema' } 
 });
 
 const Cuenta = mongoose.model('Cuenta', CuentaSchema);
@@ -52,91 +55,110 @@ const Activo = mongoose.model('Activo', ActivoSchema);
 const Movimiento = mongoose.model('Movimiento', MovimientoSchema);
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
 
-async function inicializarUsuarioMaestro() {
+async function inicializarAdmin() {
     const existe = await Usuario.findOne({ user: '1978' });
     if (!existe) {
-        await Usuario.create({ user: '1978', pass: '1978' });
-        console.log("🔐 Usuario Maestro 1978 creado.");
+        // Tu usuario maestro tiene acceso a todo (es_admin: true)
+        await Usuario.create({ user: '1978', pass: '1978', es_admin: true });
+        console.log("🔐 Admin Maestro creado.");
+    }
+}
+
+// --- MIDDLEWARE DE SEGURIDAD ---
+// Verifica qué proyectos puede ver el usuario
+async function filtrarProyectosPorUsuario(usuarioNombre) {
+    const usuario = await Usuario.findOne({ user: usuarioNombre });
+    if (!usuario) return [];
+    if (usuario.es_admin) {
+        return await Activo.find(); // El jefe ve todo
+    } else {
+        // El empleado solo ve lo que tiene en su lista
+        return await Activo.find({ _id: { $in: usuario.proyectos_permitidos } });
     }
 }
 
 // --- RUTAS API ---
 
+// LOGIN: Ahora devuelve si es admin
 app.post('/api/login', async (req, res) => {
     const { user, pass } = req.body;
     const usuario = await Usuario.findOne({ user, pass });
-    if (usuario) res.json({ success: true, user: usuario.user });
-    else res.status(401).json({ success: false, error: "Credenciales incorrectas" });
+    if (usuario) {
+        res.json({ success: true, user: usuario.user, es_admin: usuario.es_admin });
+    } else {
+        res.status(401).json({ success: false, error: "Credenciales incorrectas" });
+    }
 });
 
+// OBTENER DATOS (Filtrados por permisos)
 app.get('/api/data', async (req, res) => {
+    const userReq = req.query.user; // El frontend nos dice quién pide los datos
+    if(!userReq) return res.status(403).json({error:"Usuario no identificado"});
+
     try {
-        const cuentas = await Cuenta.find();
-        const activos = await Activo.find();
-        const movimientos = await Movimiento.find().sort({ fecha: -1 }).limit(20)
+        const misActivos = await filtrarProyectosPorUsuario(userReq);
+        const idsActivos = misActivos.map(a => a._id);
+
+        const cuentas = await Cuenta.find(); // Las cuentas de banco las ven todos para poder registrar (se puede restringir también si quieres)
+        
+        // Traer movimientos: Los del admin ve todos, el empleado solo de sus proyectos
+        const usuarioDB = await Usuario.findOne({ user: userReq });
+        let filtroMovs = {};
+        if (!usuarioDB.es_admin) {
+            filtroMovs.activo_id = { $in: idsActivos };
+        }
+
+        const movimientos = await Movimiento.find(filtroMovs).sort({ fecha: -1 }).limit(50)
             .populate('cuenta_id', 'nombre')
             .populate('activo_id', 'nombre');
-        let patrimonio = cuentas.reduce((sum, c) => sum + c.saldo, 0);
-        res.json({ cuentas, activos, movimientos, patrimonio });
+        
+        // Reembolsos pendientes (Radar)
+        const pendientes = await Movimiento.find({ ...filtroMovs, estado: 'pendiente_reembolso' })
+            .populate('activo_id', 'nombre');
+
+        // Patrimonio: Solo calcularlo real para el admin
+        let patrimonio = 0;
+        if(usuarioDB.es_admin) {
+            patrimonio = cuentas.reduce((sum, c) => sum + c.saldo, 0);
+        }
+
+        res.json({ cuentas, activos: misActivos, movimientos, patrimonio, pendientes, es_admin: usuarioDB.es_admin });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// NUEVO: RUTA PARA REPORTES FILTRADOS
-app.post('/api/reporte', async (req, res) => {
-    const { mes, anio, activo_id } = req.body;
-    
-    let filtro = {};
-
-    // 1. Filtrar por Fecha
-    if (mes !== 'todos') {
-        // Mes específico (Ojo: en JS los meses van de 0 a 11)
-        const start = new Date(anio, parseInt(mes), 1);
-        const end = new Date(anio, parseInt(mes) + 1, 0, 23, 59, 59);
-        filtro.fecha = { $gte: start, $lte: end };
-    } else {
-        // Todo el año
-        const start = new Date(anio, 0, 1);
-        const end = new Date(anio, 11, 31, 23, 59, 59);
-        filtro.fecha = { $gte: start, $lte: end };
-    }
-
-    // 2. Filtrar por Proyecto (Si se seleccionó uno específico)
-    if (activo_id !== 'todos') {
-        filtro.activo_id = activo_id;
-    }
-
-    try {
-        const movs = await Movimiento.find(filtro);
-        
-        // Calcular Ingresos vs Gastos
-        let ingresos = 0;
-        let gastos = 0;
-
-        movs.forEach(m => {
-            if(m.tipo === 'ingreso') ingresos += Math.abs(m.monto);
-            if(m.tipo === 'gasto') gastos += Math.abs(m.monto); // Sumamos valor absoluto para la gráfica
-        });
-
-        res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: "Error generando reporte" });
-    }
+// GESTIÓN DE USUARIOS (Solo Admin)
+app.get('/api/usuarios', async (req, res) => {
+    const users = await Usuario.find({}, 'user es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre');
+    res.json(users);
 });
 
-app.post('/api/cuentas', async (req, res) => {
-    try { const nueva = await Cuenta.create(req.body); res.json(nueva); } catch (e) { res.status(500).json({ error: "Error" }); }
-});
-app.post('/api/activos', async (req, res) => {
-    try { const nuevo = await Activo.create(req.body); res.json(nuevo); } catch (e) { res.status(500).json({ error: "Error" }); }
-});
 app.post('/api/usuarios', async (req, res) => {
-    try { const nuevo = await Usuario.create(req.body); res.json({success:true}); } catch (e) { res.status(500).json({ error: "Error" }); }
+    // Crear o Editar usuario con permisos
+    const { user, pass, proyectos, action, id } = req.body;
+    try {
+        if(action === 'crear') {
+            await Usuario.create({ user, pass, proyectos_permitidos: proyectos, es_admin: false });
+        } else if (action === 'editar') {
+            // Si viene pass vacio no lo cambiamos
+            let update = { proyectos_permitidos: proyectos };
+            if(pass) update.pass = pass;
+            await Usuario.findByIdAndUpdate(id, update);
+        } else if (action === 'borrar') {
+            await Usuario.findByIdAndDelete(id);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
 });
 
+// MOVIMIENTOS Y REEMBOLSOS
 app.post('/api/movimiento', async (req, res) => {
-    const { descripcion, monto, cuenta_id, activo_id, tipo } = req.body;
-    if (!monto || !cuenta_id) return res.status(400).json({ error: "Datos faltantes" });
+    const { descripcion, monto, cuenta_id, activo_id, tipo, estado, usuario_actual } = req.body;
+    
+    // Validar permisos del usuario antes de guardar
+    const solicitante = await Usuario.findOne({ user: usuario_actual });
+    if (!solicitante.es_admin && !solicitante.proyectos_permitidos.includes(activo_id)) {
+        return res.status(403).json({ error: "No tienes permiso en este proyecto" });
+    }
 
     let montoReal = Math.abs(monto);
     if (tipo === 'gasto') montoReal = -montoReal;
@@ -144,8 +166,18 @@ app.post('/api/movimiento', async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        await Movimiento.create([{ descripcion, monto: montoReal, cuenta_id, activo_id, tipo }], { session });
+        // Guardamos quién lo hizo y el estado (finalizado o pendiente_reembolso)
+        await Movimiento.create([{ 
+            descripcion, monto: montoReal, cuenta_id, activo_id, tipo, 
+            estado: estado || 'finalizado', creado_por: usuario_actual 
+        }], { session });
+
+        // Solo afectamos saldo si NO es pendiente de reembolso (o si es gasto normal)
+        // Lógica: 
+        // Gasto Normal -> Resta saldo.
+        // Gasto "Pendiente Reembolso" -> Resta saldo (porque el dinero salió), pero crea alerta.
         await Cuenta.findByIdAndUpdate(cuenta_id, { $inc: { saldo: montoReal } }, { session });
+        
         if (activo_id) {
             await Activo.findByIdAndUpdate(activo_id, { $inc: { balance_total: montoReal } }, { session });
         }
@@ -157,4 +189,47 @@ app.post('/api/movimiento', async (req, res) => {
     } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP con Reportes corriendo en ${PORT}`));
+app.post('/api/confirmar-reembolso', async (req, res) => {
+    const { mov_id, usuario_actual } = req.body;
+    
+    const movOriginal = await Movimiento.findById(mov_id);
+    if(!movOriginal) return res.status(404).json({error:"No existe"});
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        // 1. Cambiar estado del original a "reembolsado"
+        movOriginal.estado = 'reembolsado';
+        await movOriginal.save({ session });
+
+        // 2. Crear el ingreso del dinero de vuelta
+        const montoReembolso = Math.abs(movOriginal.monto); // Convertimos el gasto negativo a positivo
+        
+        await Movimiento.create([{
+            descripcion: "✅ REEMBOLSO RECIBIDO: " + movOriginal.descripcion,
+            monto: montoReembolso,
+            cuenta_id: movOriginal.cuenta_id,
+            activo_id: movOriginal.activo_id,
+            tipo: 'ingreso',
+            estado: 'finalizado',
+            creado_por: usuario_actual
+        }], { session });
+
+        // 3. Sumar el dinero a la cuenta y proyecto
+        await Cuenta.findByIdAndUpdate(movOriginal.cuenta_id, { $inc: { saldo: montoReembolso } }, { session });
+        await Activo.findByIdAndUpdate(movOriginal.activo_id, { $inc: { balance_total: montoReembolso } }, { session });
+
+        await session.commitTransaction();
+        res.json({ success: true });
+    } catch (e) {
+        await session.abortTransaction();
+        console.error(e);
+        res.status(500).json({ error: "Error procesando reembolso" });
+    } finally { session.endSession(); }
+});
+
+// Creación básica de activos/cuentas (solo admin debería poder idealmente, lo dejamos abierto por simplicidad o puedes restringirlo en frontend)
+app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
+app.post('/api/activos', async (req, res) => { try { await Activo.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
+
+app.listen(PORT, () => console.log(`ERP Avanzado corriendo en ${PORT}`));
