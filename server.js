@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v8.1 (Traspasos Full) Conectado");
+        console.log("✅ ERP v9.0 (Gestión Usuarios Full) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -108,7 +108,7 @@ app.get('/api/data', async (req, res) => {
     catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CRUD BASICO
+// CRUD CUENTAS & PROYECTOS
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
@@ -116,20 +116,44 @@ app.post('/api/activos', async (req, res) => { try { await Activo.create({ nombr
 app.put('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-app.get('/api/usuarios', async (req, res) => { const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre'); res.json(users); });
-app.post('/api/usuarios', async (req, res) => {
-    const { user, pass, nombre_completo, proyectos, action, id } = req.body;
-    try {
-        if(action === 'crear') await Usuario.create({ user, pass, nombre_completo, proyectos_permitidos: proyectos, es_admin: false });
-        else if (action === 'borrar') await Usuario.findByIdAndDelete(id);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
+// --- GESTIÓN DE USUARIOS (MEJORADA) ---
+app.get('/api/usuarios', async (req, res) => { 
+    const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre'); 
+    res.json(users); 
 });
 
-// TRASPASO ENTRE CUENTAS (CORREGIDO: RECIBE PROYECTO)
+// Crear Usuario
+app.post('/api/usuarios', async (req, res) => {
+    const { user, pass, nombre_completo, proyectos } = req.body;
+    try {
+        await Usuario.create({ user, pass, nombre_completo, proyectos_permitidos: proyectos, es_admin: false });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Error creando usuario" }); }
+});
+
+// Editar Usuario (NUEVO)
+app.put('/api/usuarios/:id', async (req, res) => {
+    const { user, pass, nombre_completo, proyectos } = req.body;
+    try {
+        const updateData = { user, nombre_completo, proyectos_permitidos: proyectos };
+        if(pass && pass.trim() !== "") updateData.pass = pass; // Solo actualiza pass si se escribe una nueva
+        
+        await Usuario.findByIdAndUpdate(req.params.id, updateData);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Error editando usuario" }); }
+});
+
+// Borrar Usuario
+app.delete('/api/usuarios/:id', async (req, res) => {
+    try {
+        await Usuario.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Error borrando usuario" }); }
+});
+
+// TRASPASOS & MOVIMIENTOS
 app.post('/api/traspaso', async (req, res) => {
     const { origen_id, destino_id, monto, descripcion, usuario_actual, activo_id } = req.body;
-    
     if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Datos incompletos" });
     if(origen_id === destino_id) return res.status(400).json({ error: "Origen y destino iguales" });
 
@@ -137,35 +161,13 @@ app.post('/api/traspaso', async (req, res) => {
     session.startTransaction();
     try {
         const montoNum = Math.abs(parseFloat(monto));
-
-        // 1. Salida de Origen
-        await Movimiento.create([{ 
-            descripcion: `➡️ TRASPASO A: ${descripcion || 'Otra cuenta'}`, 
-            monto: -montoNum, 
-            cuenta_id: origen_id, 
-            activo_id: activo_id || null, // Guardamos el proyecto
-            tipo: 'traspaso_salida', 
-            creado_por: usuario_actual 
-        }], { session });
+        await Movimiento.create([{ descripcion: `➡️ TRASPASO A: ${descripcion || 'Otra cuenta'}`, monto: -montoNum, cuenta_id: origen_id, activo_id: activo_id || null, tipo: 'traspaso_salida', creado_por: usuario_actual }], { session });
         await Cuenta.findByIdAndUpdate(origen_id, { $inc: { saldo: -montoNum } }, { session });
-
-        // 2. Entrada a Destino
-        await Movimiento.create([{ 
-            descripcion: `⬅️ RECIBIDO DE: ${descripcion || 'Otra cuenta'}`, 
-            monto: montoNum, 
-            cuenta_id: destino_id, 
-            activo_id: activo_id || null, // Guardamos el proyecto
-            tipo: 'traspaso_entrada', 
-            creado_por: usuario_actual 
-        }], { session });
+        await Movimiento.create([{ descripcion: `⬅️ RECIBIDO DE: ${descripcion || 'Otra cuenta'}`, monto: montoNum, cuenta_id: destino_id, activo_id: activo_id || null, tipo: 'traspaso_entrada', creado_por: usuario_actual }], { session });
         await Cuenta.findByIdAndUpdate(destino_id, { $inc: { saldo: montoNum } }, { session });
-
         await session.commitTransaction();
         res.json({ success: true });
-    } catch (e) {
-        await session.abortTransaction();
-        res.status(500).json({ error: "Error en traspaso" });
-    } finally { session.endSession(); }
+    } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error en traspaso" }); } finally { session.endSession(); }
 });
 
 app.post('/api/movimiento', async (req, res) => {
@@ -212,16 +214,12 @@ app.post('/api/reporte', async (req, res) => {
     }
 
     try {
-        const movs = await Movimiento.find(filtro).sort({ fecha: 1 })
-            .populate('activo_id', 'nombre')
-            .populate('cuenta_id', 'nombre');
-
+        const movs = await Movimiento.find(filtro).sort({ fecha: 1 }).populate('activo_id', 'nombre').populate('cuenta_id', 'nombre');
         let ingresos = 0; let gastos = 0;
         movs.forEach(m => {
             if(m.tipo === 'ingreso' || m.estado === 'reembolsado') ingresos += Math.abs(m.monto);
             if(m.tipo === 'gasto' && m.estado !== 'reembolsado') gastos += Math.abs(m.monto);
         });
-        
         res.json({ ingresos, gastos, neto: ingresos - gastos, cantidad: movs.length, detalles: movs });
     } catch (e) { res.status(500).json({ error: "Error reporte" }); }
 });
@@ -243,4 +241,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP v8.1 Traspasos Fix en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v9.0 User Edit en ${PORT}`));
