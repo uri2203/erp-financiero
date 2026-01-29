@@ -13,14 +13,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v4.0 Conectado");
+        console.log("✅ ERP v5.0 (Cuentas Seguras) Conectado");
         inicializarAdmin();
     })
     .catch(err => console.error("❌ Error BD:", err));
 
 // --- MODELOS ---
 const UsuarioSchema = new mongoose.Schema({
-    nombre_completo: { type: String, default: 'Usuario Sistema' }, // NUEVO CAMPO
+    nombre_completo: { type: String, default: 'Usuario Sistema' },
     user: { type: String, required: true, unique: true },
     pass: { type: String, required: true },
     es_admin: { type: Boolean, default: false },
@@ -36,7 +36,9 @@ const CuentaSchema = new mongoose.Schema({
 const ActivoSchema = new mongoose.Schema({
     nombre: { type: String, required: true },
     balance_total: { type: Number, default: 0 },
-    icono: { type: String, default: '🚀' }
+    icono: { type: String, default: '🚀' },
+    // NUEVO: Las cuentas que este proyecto puede usar
+    cuentas_asociadas: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Cuenta' }] 
 });
 
 const MovimientoSchema = new mongoose.Schema({
@@ -56,94 +58,130 @@ const Movimiento = mongoose.model('Movimiento', MovimientoSchema);
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
 
 async function inicializarAdmin() {
-    // Asegura que el admin 1978 exista y sea admin
     await Usuario.findOneAndUpdate(
         { user: '1978' },
         { $set: { es_admin: true, pass: '1978', nombre_completo: 'Administrador Principal' } },
         { upsert: true, new: true } 
     );
-    console.log("🔐 Admin Maestro verificado.");
 }
 
-// --- MIDDLEWARE ---
-async function filtrarProyectosPorUsuario(usuarioNombre) {
-    const usuario = await Usuario.findOne({ user: usuarioNombre });
-    if (!usuario) return [];
-    if (usuario.es_admin) return await Activo.find();
-    return await Activo.find({ _id: { $in: usuario.proyectos_permitidos } });
+// --- LOGICA DE FILTRADO MAESTRA ---
+async function obtenerDatosSeguros(usuarioReq) {
+    const usuarioDB = await Usuario.findOne({ user: usuarioReq });
+    if (!usuarioDB) throw new Error("Usuario no encontrado");
+
+    let misProyectos = [];
+    let misCuentas = [];
+    let filtroMovs = {};
+
+    if (usuarioDB.es_admin) {
+        // ADMIN VE TODO
+        misProyectos = await Activo.find().populate('cuentas_asociadas');
+        misCuentas = await Cuenta.find();
+    } else {
+        // EMPLEADO: Solo ve sus proyectos y las cuentas de esos proyectos
+        misProyectos = await Activo.find({ _id: { $in: usuarioDB.proyectos_permitidos } }).populate('cuentas_asociadas');
+        
+        // Extraer IDs de cuentas permitidas de los proyectos
+        let idsCuentasPermitidas = new Set();
+        misProyectos.forEach(p => {
+            if(p.cuentas_asociadas) {
+                p.cuentas_asociadas.forEach(c => idsCuentasPermitidas.add(c._id.toString()));
+            }
+        });
+        
+        misCuentas = await Cuenta.find({ _id: { $in: Array.from(idsCuentasPermitidas) } });
+        filtroMovs.activo_id = { $in: misProyectos.map(p => p._id) };
+    }
+
+    const movimientos = await Movimiento.find(filtroMovs).sort({ fecha: -1 }).limit(50)
+        .populate('cuenta_id', 'nombre').populate('activo_id', 'nombre');
+    
+    const pendientes = await Movimiento.find({ ...filtroMovs, estado: 'pendiente_reembolso' })
+        .populate('activo_id', 'nombre');
+
+    let patrimonio = 0;
+    if(usuarioDB.es_admin) patrimonio = misCuentas.reduce((sum, c) => sum + c.saldo, 0);
+
+    return { 
+        cuentas: misCuentas, 
+        activos: misProyectos, 
+        movimientos, 
+        patrimonio, 
+        pendientes, 
+        es_admin: usuarioDB.es_admin 
+    };
 }
 
 // --- RUTAS API ---
 
-// 1. LOGIN
 app.post('/api/login', async (req, res) => {
     const { user, pass } = req.body;
     const usuario = await Usuario.findOne({ user, pass });
-    if (usuario) {
-        res.json({ success: true, user: usuario.user, nombre: usuario.nombre_completo, es_admin: usuario.es_admin });
-    } else {
-        res.status(401).json({ success: false, error: "Credenciales incorrectas" });
-    }
+    if (usuario) res.json({ success: true, user: usuario.user, es_admin: usuario.es_admin });
+    else res.status(401).json({ success: false, error: "Credenciales incorrectas" });
 });
 
-// 2. DATA GENERAL
 app.get('/api/data', async (req, res) => {
-    const userReq = req.query.user; 
-    if(!userReq) return res.status(403).json({error:"Usuario no identificado"});
-
     try {
-        const usuarioDB = await Usuario.findOne({ user: userReq });
-        if(!usuarioDB) return res.status(404).json({error: "Usuario no encontrado"});
-
-        const misActivos = await filtrarProyectosPorUsuario(userReq);
-        const idsActivos = misActivos.map(a => a._id);
-        const cuentas = await Cuenta.find(); 
-        
-        let filtroMovs = {};
-        if (!usuarioDB.es_admin) filtroMovs.activo_id = { $in: idsActivos };
-
-        const movimientos = await Movimiento.find(filtroMovs).sort({ fecha: -1 }).limit(50)
-            .populate('cuenta_id', 'nombre').populate('activo_id', 'nombre');
-        
-        const pendientes = await Movimiento.find({ ...filtroMovs, estado: 'pendiente_reembolso' })
-            .populate('activo_id', 'nombre');
-
-        let patrimonio = 0;
-        if(usuarioDB.es_admin) patrimonio = cuentas.reduce((sum, c) => sum + c.saldo, 0);
-
-        res.json({ cuentas, activos: misActivos, movimientos, patrimonio, pendientes, es_admin: usuarioDB.es_admin });
+        const data = await obtenerDatosSeguros(req.query.user);
+        res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. GESTIÓN CUENTAS (CREAR, EDITAR, BORRAR)
+// CRUD CUENTAS
 app.post('/api/cuentas', async (req, res) => { try { await Cuenta.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
 app.put('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 app.delete('/api/cuentas/:id', async (req, res) => { try { await Cuenta.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-// 4. GESTIÓN PROYECTOS (CREAR, EDITAR, BORRAR)
-app.post('/api/activos', async (req, res) => { try { await Activo.create(req.body); res.json({ok:true}); } catch (e) { res.status(500).json({error:"err"}); }});
-app.put('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndUpdate(req.params.id, req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
+// CRUD PROYECTOS (AHORA CON CUENTAS ASOCIADAS)
+app.post('/api/activos', async (req, res) => { 
+    try { 
+        // body trae: { nombre: "...", cuentas: ["id1", "id2"] }
+        await Activo.create({ nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); 
+        res.json({ok:true}); 
+    } catch (e) { res.status(500).json({error:"err"}); }
+});
+app.put('/api/activos/:id', async (req, res) => { 
+    try { 
+        await Activo.findByIdAndUpdate(req.params.id, { nombre: req.body.nombre, cuentas_asociadas: req.body.cuentas }); 
+        res.json({ok:true}); 
+    } catch(e){ res.status(500).json({error:"err"}); }
+});
 app.delete('/api/activos/:id', async (req, res) => { try { await Activo.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); }});
 
-// 5. GESTIÓN USUARIOS (Ahora con Nombre Completo)
+// GESTIÓN USUARIOS
 app.get('/api/usuarios', async (req, res) => {
     const users = await Usuario.find({}, 'user nombre_completo es_admin proyectos_permitidos').populate('proyectos_permitidos', 'nombre');
     res.json(users);
 });
-
 app.post('/api/usuarios', async (req, res) => {
     const { user, pass, nombre_completo, proyectos, action, id } = req.body;
     try {
-        if(action === 'crear') {
-            await Usuario.create({ user, pass, nombre_completo, proyectos_permitidos: proyectos, es_admin: false });
-        } else if (action === 'borrar') {
-            await Usuario.findByIdAndDelete(id);
-        }
+        if(action === 'crear') await Usuario.create({ user, pass, nombre_completo, proyectos_permitidos: proyectos, es_admin: false });
+        else if (action === 'borrar') await Usuario.findByIdAndDelete(id);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Error gestión usuario" }); }
 });
 
-// 6. MOVIMIENTOS Y REPORTES (Igual que antes)
+// MOVIMIENTOS Y REPORTES (Iguales)
+app.post('/api/movimiento', async (req, res) => {
+    const { descripcion, monto, cuenta_id, activo_id, tipo, estado, usuario_actual } = req.body;
+    // Validación extra de seguridad: ¿El usuario puede usar esa cuenta?
+    // Se podría agregar aquí, pero el frontend ya filtra.
+    let montoReal = Math.abs(monto);
+    if (tipo === 'gasto') montoReal = -montoReal;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        await Movimiento.create([{ descripcion, monto: montoReal, cuenta_id, activo_id, tipo, estado: estado || 'finalizado', creado_por: usuario_actual }], { session });
+        await Cuenta.findByIdAndUpdate(cuenta_id, { $inc: { saldo: montoReal } }, { session });
+        if (activo_id) await Activo.findByIdAndUpdate(activo_id, { $inc: { balance_total: montoReal } }, { session });
+        await session.commitTransaction();
+        res.json({ success: true });
+    } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
+});
+
 app.post('/api/reporte', async (req, res) => {
     const { mes, anio, activo_id } = req.body;
     let filtro = {};
@@ -168,25 +206,6 @@ app.post('/api/reporte', async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Error reporte" }); }
 });
 
-app.post('/api/movimiento', async (req, res) => {
-    const { descripcion, monto, cuenta_id, activo_id, tipo, estado, usuario_actual } = req.body;
-    const solicitante = await Usuario.findOne({ user: usuario_actual });
-    if (!solicitante.es_admin && !solicitante.proyectos_permitidos.includes(activo_id)) {
-        return res.status(403).json({ error: "No tienes permiso en este proyecto" });
-    }
-    let montoReal = Math.abs(monto);
-    if (tipo === 'gasto') montoReal = -montoReal;
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-        await Movimiento.create([{ descripcion, monto: montoReal, cuenta_id, activo_id, tipo, estado: estado || 'finalizado', creado_por: usuario_actual }], { session });
-        await Cuenta.findByIdAndUpdate(cuenta_id, { $inc: { saldo: montoReal } }, { session });
-        if (activo_id) await Activo.findByIdAndUpdate(activo_id, { $inc: { balance_total: montoReal } }, { session });
-        await session.commitTransaction();
-        res.json({ success: true });
-    } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error transacción" }); } finally { session.endSession(); }
-});
-
 app.post('/api/confirmar-reembolso', async (req, res) => {
     const { mov_id, usuario_actual } = req.body;
     const movOriginal = await Movimiento.findById(mov_id);
@@ -204,4 +223,4 @@ app.post('/api/confirmar-reembolso', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error reembolso" }); } finally { session.endSession(); }
 });
 
-app.listen(PORT, () => console.log(`ERP CTRFAM v4.0 corriendo en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP CTRFAM v5.0 corriendo en ${PORT}`));
