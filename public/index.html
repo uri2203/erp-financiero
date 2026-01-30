@@ -205,12 +205,12 @@ function imprimirReporte() {
 
     const html = `
         <div style="font-family:sans-serif; padding:20px;">
-            <h1 style="text-align:center;">REPORTE EJECUTIVO</h1>
+            <h1 style="text-align:center;">REPORTE CTRFAM</h1>
             <p style="text-align:center;">Usuario: ${CURRENT_USER} | Fecha: ${new Date().toLocaleDateString()}</p>
             <hr>
             <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:18px; font-weight:bold;">
                 <div>Ingresos: ${fmtMoney(REPORT_CACHE.ingresos)}</div>
-                <div>Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div>
+                <div style="color:#dc2626;">Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div>
                 <div>Neto: ${fmtMoney(REPORT_CACHE.neto)}</div>
             </div>
             <hr>
