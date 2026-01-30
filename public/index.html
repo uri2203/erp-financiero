@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V32 Admin Full</title>
+<title>ERP CTRFAM | V33 Aligned</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -33,6 +33,39 @@
     .tab-section { display:none; animation:fadeIn 0.3s; }
     .tab-section.active { display:block; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+    /* CHECKLIST ALINEADO (NUEVO) */
+    .checklist-box {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Dos columnas limpias */
+        gap: 10px;
+        background: #000;
+        padding: 15px;
+        border: 1px solid #333;
+        border-radius: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+        text-align: left; /* Forzar alineación izquierda */
+    }
+    .check-item {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* Espacio entre cuadrito y texto */
+        font-size: 13px;
+        color: #ccc;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 4px;
+        transition: 0.2s;
+    }
+    .check-item:hover { background: rgba(255,255,255,0.1); }
+    .check-item input { 
+        margin: 0; 
+        width: 16px; 
+        height: 16px; 
+        cursor: pointer; 
+        accent-color: var(--blue); /* Color del check */
+    }
 
     /* DASHBOARD */
     .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--card); padding:15px 25px; border-radius:16px; border:1px solid var(--border); box-shadow:0 4px 10px rgba(0,0,0,0.5); }
@@ -127,22 +160,30 @@
                         <input type="hidden" id="userIdEdit">
                         <div style="display:flex;gap:10px;"><input type="text" id="new_fullname" placeholder="Nombre Completo"><input type="text" id="new_user" placeholder="Usuario"></div>
                         <input type="text" id="new_pass" placeholder="Contraseña">
-                        <label style="font-size:11px;color:var(--muted);">Acceso a Proyectos:</label><div id="checklistProyectos" class="checklist-grid"></div>
-                        <button class="btn bg-blue" style="width:100%;" onclick="guardarUsuario()">GUARDAR USUARIO</button>
+                        
+                        <label style="font-size:11px;color:var(--muted); display:block; margin-bottom:5px;">Acceso a Proyectos:</label>
+                        <div id="checklistProyectos" class="checklist-box"></div>
+                        
+                        <button class="btn bg-blue" style="width:100%; margin-top:15px;" onclick="guardarUsuario()">GUARDAR USUARIO</button>
                     </div>
                     <h3 style="font-size:12px; color:#aaa; margin-top:20px;">LISTA DE PERSONAL</h3>
                     <ul id="listaUsuarios" class="admin-list"></ul>
                 </div>
+                
                 <div id="tab-proyectos" class="tab-section">
                     <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:20px;">Proyectos</h2>
                     <div class="admin-form-group">
                         <h3 style="margin:0 0 10px 0; font-size:12px; color:var(--blue);" id="proyTitle">NUEVO PROYECTO</h3>
                         <input type="hidden" id="proyIdEdit"><input type="text" id="proyNombre" placeholder="Nombre Proyecto">
-                        <label style="font-size:11px;color:var(--gold);">Cuentas Vinculadas:</label><div id="checklistCuentasProy" class="checklist-grid"></div>
-                        <button class="btn bg-blue" style="width:100%;" onclick="guardarActivoFull()">GUARDAR PROYECTO</button>
+                        
+                        <label style="font-size:11px;color:var(--gold); display:block; margin-bottom:5px;">Cuentas Vinculadas:</label>
+                        <div id="checklistCuentasProy" class="checklist-box"></div>
+                        
+                        <button class="btn bg-blue" style="width:100%; margin-top:15px;" onclick="guardarActivoFull()">GUARDAR PROYECTO</button>
                     </div>
                     <ul id="listaProyectosAdmin" class="admin-list"></ul>
                 </div>
+                
                 <div id="tab-categorias-admin" class="tab-section">
                     <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:20px;">Catálogo Global</h2>
                     <div class="admin-form-group">
@@ -265,7 +306,7 @@ function renderDebts() {
 function payDebt(name) { $('debts-overlay').style.display='none'; openModal('gasto'); $('desc').value = `Abono a ${name}`; const opt = document.createElement('option'); opt.value = `Deuda: ${name}`; opt.text = `Deuda: ${name}`; $('selCat').add(opt); $('selCat').value = `Deuda: ${name}`; }
 function deleteDebt(id) { if(!confirm("¿Eliminar registro?")) return; DEBTS = DEBTS.filter(d => d.id !== id); localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); renderDebts(); }
 
-// --- REPORTES (CASH FLOW FIX) ---
+// --- REPORTES ---
 function abrirReportes(){
     try {
         $('reporte-overlay').style.display='flex';
@@ -377,12 +418,13 @@ function switchTab(t){
     const panel = document.getElementById(`tab-${t}`); const btn = document.getElementById(`btn-tab-${t}`);
     if(panel) panel.classList.add('active'); if(btn) btn.classList.add('active');
 }
-async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"> ${a.nombre}</label>`).join(''); 
+async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); 
+$('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div class="check-item"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"> ${a.nombre}</div>`).join(''); 
 $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<div class="item-row"><b>${u.user}</b> <div class="flex-row"><button class="btn-icon edit" onclick="editarUsuario('${u._id}')">✏️</button><button class="btn-icon del" onclick="borrarUsuario('${u._id}')">🗑️</button></div></div>`).join(''); }
 async function borrarUsuario(id){ if(confirm("¿Eliminar usuario?")) await fetch(`/api/usuarios/${id}`,{method:'DELETE'}); cargarUsuariosUI(); }
 function editarUsuario(id){ const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false); if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; }); }
 async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value); if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})}); $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI(); }
-function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"> ${c.nombre}</label>`).join(''); 
+function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div class="check-item"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"> ${c.nombre}</div>`).join(''); 
 $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<div class="item-row"><b>${a.nombre}</b> <div class="flex-row"><button class="btn-icon edit" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn-icon del" onclick="borrarActivo('${a._id}')">🗑️</button></div></div>`).join(''); }
 function editarProyecto(id) { const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre; document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false); if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; }); }
 async function guardarActivoFull() { const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value); if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})}); $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin); }
