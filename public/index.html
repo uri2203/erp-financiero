@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Elite V27</title>
+<title>ERP CTRFAM | V28 Deudas Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -49,8 +49,6 @@
 
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:8px; color:white; text-transform:uppercase; letter-spacing:0.5px; justify-content:center; transition:0.2s; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
-    
-    /* MICRO BOTONES */
     .btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff; }
     .btn-icon:hover { transform: scale(1.05); }
     .btn-icon.edit:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--blue); color: var(--blue); }
@@ -69,7 +67,7 @@
     .item-row:hover { background:rgba(255,255,255,0.03); }
     .flex-row { display:flex; gap:10px; }
     
-    /* DEUDAS */
+    /* PROGRESS BAR PARA DEUDAS */
     .progress-track { width: 100%; background: #222; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--blue); transition: width 0.5s ease; }
     
@@ -78,12 +76,14 @@
         body * { visibility: hidden; }
         #print-area, #print-area * { visibility: visible; }
         #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; font-family: 'Helvetica', sans-serif; padding: 40px; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .print-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
-        .print-table th { background-color: #000; color: #fff; padding: 8px; text-align: left; text-transform: uppercase; font-weight: bold; }
+        .print-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 11px; }
+        .print-table th { background-color: #eee; color: #000; padding: 8px; text-align: left; text-transform: uppercase; font-weight: bold; border-bottom: 2px solid #000; }
         .print-table td { border-bottom: 1px solid #ccc; padding: 8px; color: #000; }
-        .print-table tr:nth-child(even) { background-color: #f5f5f5; }
+        .print-table tr:nth-child(even) { background-color: #f9f9f9; }
         .text-right { text-align: right; }
-        .text-red-print { color: #d00 !important; font-weight: bold; }
+        .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .print-logo { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+        .debt-container { margin-bottom: 30px; border: 1px solid #000; padding: 15px; page-break-inside: avoid; }
     }
 
     @media (max-width: 1200px) { .grid { grid-template-columns:1fr; overflow-y:auto; } body { height:auto; overflow-y:auto; } }
@@ -190,6 +190,7 @@
 <div id="debts-overlay" class="overlay">
     <div class="box-sm">
         <h2 style="margin-bottom:20px;color:var(--orange);">📉 Pasivos & Deudas</h2>
+        
         <div style="background:#151515; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
             <label style="font-size:11px;color:var(--muted);">Nueva Deuda / Crédito</label>
             <div class="flex-row">
@@ -198,8 +199,13 @@
             </div>
             <button class="btn bg-green" style="width:100%; justify-content:center;" onclick="addDebt()">+ CREAR PASIVO</button>
         </div>
+
         <div id="debtsList" class="item-list" style="max-height:300px;"></div>
-        <button class="btn bg-red" style="width:100%; margin-top:20px;" onclick="document.getElementById('debts-overlay').style.display='none'">CERRAR</button>
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn bg-gold" style="flex:1; justify-content:center;" onclick="imprimirReporteDeudas()">🖨️ REPORTE DETALLADO</button>
+            <button class="btn bg-red" style="width:100px; justify-content:center;" onclick="document.getElementById('debts-overlay').style.display='none'">CERRAR</button>
+        </div>
     </div>
 </div>
 
@@ -254,11 +260,46 @@ function renderDebts() {
 function payDebt(name) { $('debts-overlay').style.display='none'; openModal('gasto'); $('desc').value = `Abono a ${name}`; const opt = document.createElement('option'); opt.value = `Deuda: ${name}`; opt.text = `Deuda: ${name}`; $('selCat').add(opt); $('selCat').value = `Deuda: ${name}`; }
 function deleteDebt(id) { if(!confirm("¿Eliminar registro?")) return; DEBTS = DEBTS.filter(d => d.id !== id); localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); renderDebts(); }
 
+// --- REPORTES DETALLADOS DE DEUDAS ---
+function imprimirReporteDeudas() {
+    let html = `<div class="print-header"><div class="print-logo">ESTADO DE PASIVOS</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div>`;
+    
+    DEBTS.forEach(d => {
+        const payments = DATA.movimientos
+            .filter(m => m.categoria === `Deuda: ${d.name}` && m.tipo === 'gasto')
+            .sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+        
+        const abonado = payments.reduce((sum, m) => sum + Math.abs(m.monto), 0);
+        const restante = d.total - abonado;
+        
+        const rows = payments.map(p => `
+            <tr>
+                <td>${new Date(p.fecha).toLocaleDateString()}</td>
+                <td>${p.descripcion}</td>
+                <td class="text-right">${fmtMoney(Math.abs(p.monto))}</td>
+            </tr>`).join('');
+
+        html += `
+        <div class="debt-container">
+            <div style="display:flex; justify-content:space-between; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom:10px;">
+                <b style="font-size:14px;">${d.name.toUpperCase()}</b>
+                <b style="font-size:14px;">MONTO TOTAL: ${fmtMoney(d.total)}</b>
+            </div>
+            ${rows ? `<table class="print-table"><thead><tr><th>FECHA</th><th>CONCEPTO</th><th class="text-right">ABONO</th></tr></thead><tbody>${rows}</tbody></table>` : '<p style="font-style:italic; font-size:11px;">Sin abonos registrados aún.</p>'}
+            <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:10px; font-weight:bold; border-top:1px solid #ccc; padding-top:5px;">
+                <span>PAGADO: ${fmtMoney(abonado)}</span>
+                <span style="color:${restante > 0 ? '#d00' : 'green'}">RESTANTE: ${fmtMoney(restante)}</span>
+            </div>
+        </div>`;
+    });
+    
+    imprimirHTML(html);
+}
+
 // --- INIT ---
 async function doLogin() { 
     const u=$('user').value, p=$('pass').value; 
     try { 
-        // CORREGIDO: JSON.stringify({user:u, pass:p})
         const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})}); 
         const d=await r.json(); 
         if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}
@@ -273,7 +314,7 @@ function renderAll(){
     if(IS_ADMIN){
         $('btnAdmin').style.display='flex'; 
         $('btnAddCta').style.display='block';
-        $('btnDebts').style.display='flex'; // SOLO ADMIN VE DEUDAS
+        $('btnDebts').style.display='flex'; // SOLO ADMIN
     }else{
         $('btnAdmin').style.display='none'; 
         $('btnAddCta').style.display='none';
@@ -302,28 +343,6 @@ function renderMovs(movs) {
     }).join('');
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
-
-// --- REPORTES ---
-function abrirReportes(){
-    $('reporte-overlay').style.display='flex';
-    if(DATA.cuentas) $('report-accounts-list').innerHTML = DATA.cuentas.map(c => `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;"><input type="checkbox" class="chk-report-account" value="${c._id}" onchange="actualizarReporte()"> ${c.nombre}</label>`).join('');
-    actualizarReporte();
-}
-async function actualizarReporte(){
-    const anio=$('filtroAnio').value, mes=$('filtroMes').value, activo_id=$('filtroProyecto').value;
-    const selected = Array.from(document.querySelectorAll('.chk-report-account:checked')).map(cb => cb.value);
-    const cuentas_ids = selected.length > 0 ? selected : 'todas';
-    try {
-        const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER, cuentas_ids})});
-        const rep=await r.json(); REPORT_CACHE=rep;
-        $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
-        const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); 
-        repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{grid:{color:'#333'}}}}});
-        const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy(); 
-        const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{}); 
-        repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});
-    } catch(e){console.error(e);}
-}
 
 // --- IMPRESION PRO ---
 function imprimirHTML(h){ const p=document.getElementById('print-area'); p.innerHTML=h; window.print(); p.innerHTML=''; }
