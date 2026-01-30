@@ -156,7 +156,11 @@
 
 <div id="reporte-overlay"><div class="reporte-box"><div style="display:flex;justify-content:space-between;margin-bottom:20px;"><h2>📊 Reportes</h2><div style="display:flex;gap:10px;"><button class="btn btn-gold" onclick="imprimirReporte()">🖨️ IMPRIMIR / PDF</button><button class="btn btn-red" onclick="cerrarReportes()">X</button></div></div><div class="filter-bar"><select id="filtroAnio" onchange="actualizarReporte()"><option value="2026">2026</option><option value="2025">2025</option></select><select id="filtroMes" onchange="actualizarReporte()"><option value="todos">Año</option><option value="0">Ene</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Abr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Ago</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dic</option></select><select id="filtroProyecto" onchange="actualizarReporte()"><option value="todos">Todos</option></select></div><div style="display:flex;gap:20px;margin-bottom:20px;text-align:center;"><div style="flex:1;"><small>INGRESOS</small><div id="repIng" style="font-size:20px;color:var(--green);font-weight:bold;"></div></div><div style="flex:1;"><small>GASTOS</small><div id="repGas" style="font-size:20px;color:var(--red);font-weight:bold;"></div></div><div style="flex:1;"><small>NETO</small><div id="repNeto" style="font-size:20px;color:#fff;font-weight:bold;"></div></div></div><div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;"><div style="height:250px;"><canvas id="chartReporteMain"></canvas></div><div style="height:250px;"><canvas id="chartReporteCat"></canvas></div></div></div></div>
 
-<div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2><label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div><label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select><button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
+<div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2>
+<input type="hidden" id="movIdEdit"> <label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div>
+<div id="createFields"> <label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select>
+</div>
+<label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div><button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
 
 <div class="top-bar">
     <div><div style="font-size:10px;color:var(--gray);text-transform:uppercase;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
@@ -181,100 +185,28 @@ const $ = id => document.getElementById(id);
 let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[], categorias:[] };
 let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 
-// --- SISTEMA DE IMPRESION NATIVO (100% SEGURO) ---
+// --- SISTEMA DE IMPRESION NATIVO ---
 function imprimirHTML(htmlContent) {
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = htmlContent;
-    window.print();
-    printArea.innerHTML = ''; // Limpiar despues
+    const printArea = document.getElementById('print-area'); printArea.innerHTML = htmlContent; window.print(); printArea.innerHTML = '';
 }
-
 function imprimirReporte() {
     if(!REPORT_CACHE) return alert("Carga datos");
-    
-    // Construir tabla
-    const rows = REPORT_CACHE.detalles.map(m => `
-        <tr>
-            <td>${new Date(m.fecha).toLocaleDateString()}</td>
-            <td>${m.descripcion} (${m.categoria||'-'})</td>
-            <td>${m.activo_id ? m.activo_id.nombre : 'General'}</td>
-            <td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td>
-            <td style="text-align:right;">${fmtMoney(Math.abs(m.monto))}</td>
-        </tr>
-    `).join('');
-
-    const html = `
-        <div style="font-family:sans-serif; padding:20px;">
-            <h1 style="text-align:center;">REPORTE CTRFAM</h1>
-            <p style="text-align:center;">Usuario: ${CURRENT_USER} | Fecha: ${new Date().toLocaleDateString()}</p>
-            <hr>
-            <div style="display:flex; justify-content:space-between; margin:20px 0; font-size:18px; font-weight:bold;">
-                <div>Ingresos: ${fmtMoney(REPORT_CACHE.ingresos)}</div>
-                <div style="color:#dc2626;">Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div>
-                <div>Neto: ${fmtMoney(REPORT_CACHE.neto)}</div>
-            </div>
-            <hr>
-            <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-                <tr style="background:#eee;">
-                    <th style="padding:8px; border:1px solid #ccc; text-align:left;">Fecha</th>
-                    <th style="padding:8px; border:1px solid #ccc; text-align:left;">Descripción</th>
-                    <th style="padding:8px; border:1px solid #ccc; text-align:left;">Proyecto</th>
-                    <th style="padding:8px; border:1px solid #ccc; text-align:left;">Cuenta</th>
-                    <th style="padding:8px; border:1px solid #ccc; text-align:right;">Monto</th>
-                </tr>
-                ${rows}
-            </table>
-        </div>
-    `;
+    const rows = REPORT_CACHE.detalles.map(m => `<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id ? m.activo_id.nombre : 'General'}</td><td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td><td style="text-align:right;">${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');
+    const html = `<div style="font-family:sans-serif; padding:20px;"><h1 style="text-align:center;">REPORTE CTRFAM</h1><p style="text-align:center;">Usuario: ${CURRENT_USER} | Fecha: ${new Date().toLocaleDateString()}</p><hr><div style="display:flex; justify-content:space-between; margin:20px 0; font-size:18px; font-weight:bold;"><div>Ingresos: ${fmtMoney(REPORT_CACHE.ingresos)}</div><div style="color:#dc2626;">Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div><div>Neto: ${fmtMoney(REPORT_CACHE.neto)}</div></div><hr><table style="width:100%; border-collapse:collapse; margin-top:20px;"><tr style="background:#eee;"><th style="padding:8px; border:1px solid #ccc; text-align:left;">Fecha</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Descripción</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Proyecto</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Cuenta</th><th style="padding:8px; border:1px solid #ccc; text-align:right;">Monto</th></tr>${rows}</table></div>`;
     imprimirHTML(html);
 }
-
 function imprimirArqueo() {
-    let total = 0;
-    const items = [];
-    document.querySelectorAll('.chk-arqueo:checked').forEach(k => {
-        const val = parseFloat(k.value);
-        total += val;
-        items.push({ nombre: k.dataset.n, saldo: val });
-    });
-
+    let total = 0; const items = [];
+    document.querySelectorAll('.chk-arqueo:checked').forEach(k => { const val = parseFloat(k.value); total += val; items.push({ nombre: k.dataset.n, saldo: val }); });
     if(items.length === 0) return alert("Selecciona cuentas");
-
-    // Guardar en BD (Silencioso)
     fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total,detalles:items.map(i=>({cuenta:i.nombre, saldo:i.saldo}))})});
-
-    const rows = items.map(i => `
-        <tr>
-            <td style="padding:10px; border-bottom:1px solid #ccc;">${i.nombre}</td>
-            <td style="padding:10px; border-bottom:1px solid #ccc; text-align:right;">${fmtMoney(i.saldo)}</td>
-        </tr>
-    `).join('');
-
-    const html = `
-        <div style="font-family:sans-serif; padding:40px;">
-            <h1 style="text-align:center;">CORTE DE CAJA</h1>
-            <p style="text-align:center;">Responsable: ${CURRENT_USER} <br> Fecha: ${new Date().toLocaleString()}</p>
-            <br>
-            <table style="width:100%; border-collapse:collapse;">
-                <tr style="background:#000; color:#fff;">
-                    <th style="padding:10px; text-align:left;">CUENTA / CAJA</th>
-                    <th style="padding:10px; text-align:right;">SALDO</th>
-                </tr>
-                ${rows}
-            </table>
-            <h2 style="text-align:right; margin-top:30px;">TOTAL: ${fmtMoney(total)}</h2>
-            <br><br><br><br>
-            <div style="border-top:1px solid #000; width:200px; margin:0 auto; text-align:center; padding-top:5px;">Firma de Conformidad</div>
-        </div>
-    `;
+    const rows = items.map(i => `<tr><td style="padding:10px; border-bottom:1px solid #ccc;">${i.nombre}</td><td style="padding:10px; border-bottom:1px solid #ccc; text-align:right;">${fmtMoney(i.saldo)}</td></tr>`).join('');
+    const html = `<div style="font-family:sans-serif; padding:40px;"><h1 style="text-align:center;">CORTE DE CAJA</h1><p style="text-align:center;">Responsable: ${CURRENT_USER} <br> Fecha: ${new Date().toLocaleString()}</p><br><table style="width:100%; border-collapse:collapse;"><tr style="background:#000; color:#fff;"><th style="padding:10px; text-align:left;">CUENTA / CAJA</th><th style="padding:10px; text-align:right;">SALDO</th></tr>${rows}</table><h2 style="text-align:right; margin-top:30px;">TOTAL: ${fmtMoney(total)}</h2><br><br><br><br><div style="border-top:1px solid #000; width:200px; margin:0 auto; text-align:center; padding-top:5px;">Firma de Conformidad</div></div>`;
     imprimirHTML(html);
 }
 
-// --- LOGIN & INIT ---
-async function doLogin() {
-    const user=$('user').value, pass=$('pass').value;
-    try { const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,pass})}); const d=await r.json(); if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}else{$('loginError').style.display='block';} }catch(e){alert("Error");}
-}
+// --- INIT ---
+async function doLogin() { const user=$('user').value, pass=$('pass').value; try { const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,pass})}); const d=await r.json(); if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}else{$('loginError').style.display='block';} }catch(e){alert("Error");} }
 function logout(){location.reload();}
 async function loadData(){try{const r=await fetch(`/api/data?user=${CURRENT_USER}`); DATA=await r.json(); renderAll(); populateFilters();}catch(e){console.error(e);}}
 
@@ -289,71 +221,113 @@ function renderAll(){
 }
 
 function renderMovs(movs) {
-    $('listMovs').innerHTML=movs.map(m=> { let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></li>` }).join('');
+    $('listMovs').innerHTML=movs.map(m=> { 
+        let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
+        // Botones de editar y borrar
+        let actions = ``;
+        if(IS_ADMIN || m.creado_por === CURRENT_USER) {
+            actions = `<div style="display:flex; gap:5px; margin-top:5px;">
+                <button class="btn-blue btn-small" onclick='editarMov(${JSON.stringify(m)})'>✏️</button>
+                <button class="btn-red btn-small" onclick="borrarMov('${m._id}')">🗑️</button>
+            </div>`;
+        }
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; flex-direction:column; align-items:flex-start;">
+            <div style="display:flex; justify-content:space-between; width:100%;">
+                <div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div>
+                <span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span>
+            </div>
+            ${actions}
+        </li>` 
+    }).join('');
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
 
-// ADMIN MODULAR
-function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCats(); }
-function switchTab(tabId) {
-    document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.admin-tab-btn').forEach(el => el.classList.remove('active'));
-    $(tabId).classList.add('active');
-    const btns = document.querySelectorAll('.admin-tab-btn');
-    if(tabId==='tab-personal') btns[0].classList.add('active'); if(tabId==='tab-proyectos') btns[1].classList.add('active'); if(tabId==='tab-categorias') btns[2].classList.add('active'); if(tabId==='tab-sistema') btns[3].classList.add('active');
+// --- EDICIÓN Y BORRADO MOVIMIENTOS ---
+async function borrarMov(id) {
+    if(!confirm("¿Seguro? Se revertirá el saldo de la cuenta.")) return;
+    await fetch(`/api/movimiento/${id}`, {method:'DELETE'}); loadData();
 }
-async function cargarUsuariosUI(){
-    const r=await fetch('/api/usuarios'); ALL_USERS=await r.json();
-    $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join('');
-    $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small style="color:#666;">${u.proyectos_permitidos.length} Proyectos</small></div><button class="btn btn-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join('');
+
+function editarMov(m) {
+    // Verificar si es traspaso (no editable por seguridad, mejor borrar y rehacer)
+    if(m.tipo.includes('traspaso')) return alert("Los traspasos no se pueden editar para no romper la contabilidad. Bórralo y hazlo de nuevo.");
+    
+    // Llenar modal
+    $('movIdEdit').value = m._id;
+    $('desc').value = m.descripcion;
+    $('monto').value = Math.abs(m.monto);
+    $('tipoTxt').value = m.tipo.toUpperCase();
+    currentTipo = m.tipo;
+    
+    // Ocultar campos que no se deben tocar para evitar descuadres masivos
+    $('createFields').style.display = 'none'; // No cambiar cuenta ni proyecto
+    
+    // Categoría sí se puede cambiar
+    const projId = m.activo_id ? m.activo_id._id : '';
+    const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); 
+    $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>';
+    $('selCat').value = m.categoria;
+
+    $('modal').style.display='flex';
 }
-function editarUsuario(id){
-    const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false);
-    if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; });
+
+function openModal(t){
+    // Modo CREAR
+    $('movIdEdit').value = ''; 
+    $('createFields').style.display = 'block';
+    currentTipo=t; $('modal').style.display='flex'; $('tipoTxt').value=t.toUpperCase(); $('desc').value=''; $('monto').value=''; 
+    if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none'; 
+    filtrarCategorias(); 
 }
-async function guardarUsuario(){
-    const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value);
-    if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST';
-    await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})});
-    $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI();
+
+async function guardarMovimiento(){
+    const id = $('movIdEdit').value;
+    const body = { 
+        descripcion:$('desc').value, 
+        monto:$('monto').value, 
+        tipo:currentTipo, 
+        categoria:$('selCat').value, 
+        usuario_actual:CURRENT_USER 
+    };
+
+    if(id) {
+        // EDICIÓN
+        await fetch(`/api/movimiento/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    } else {
+        // CREACIÓN
+        body.cuenta_id = $('selCuenta').value;
+        body.activo_id = $('selActivo').value;
+        body.estado = ($('chkReembolso').checked && currentTipo==='gasto') ? 'pendiente_reembolso' : 'finalizado';
+        await fetch('/api/movimiento', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+    closeModal(); loadData();
 }
-function cargarProyectosAdmin() {
-    $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join('');
-    $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn btn-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join('');
-}
-function editarProyecto(id) {
-    const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre;
-    document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false);
-    if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; });
-}
-async function guardarActivoFull() {
-    const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value);
-    if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST';
-    await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})});
-    $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin);
-}
-function renderCats(){ 
-    $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');
-    $('listaCats').innerHTML=DATA.categorias.map(c=>`<li><span>${c.nombre} <small>(${c.tipo})</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); 
-}
-async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
-async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
 
 // RESTO
-async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
-async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
-function openModal(t){currentTipo=t;$('modal').style.display='flex';$('tipoTxt').value=t.toUpperCase();$('desc').value='';$('monto').value='';if(t==='gasto')$('divReembolso').style.display='flex';else $('divReembolso').style.display='none'; filtrarCategorias(); }
 function closeModal(){$('modal').style.display='none';}
 function filtrarCategorias() { const projId = $('selActivo').value; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; }
 function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
-async function guardarMovimiento(){const d=$('desc').value,m=parseFloat($('monto').value),c=$('selCuenta').value,a=$('selActivo').value,r=$('chkReembolso').checked,cat=$('selCat').value;let s='finalizado';if(currentTipo==='gasto'&&r)s='pendiente_reembolso';if(!d||!m)return;await fetch('/api/movimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({descripcion:d,monto:m,cuenta_id:c,activo_id:a,tipo:currentTipo,estado:s,categoria:cat,usuario_actual:CURRENT_USER})});closeModal();loadData();}
 async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
 function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #222;"><div style="display:flex;gap:10px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"><span>${c.nombre}</span></div><span>${fmtMoney(c.saldo)}</span></div>`).join('');calcArq();}
 function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
 function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
 async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
+// Admin
+function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCats(); }
+function switchTab(tabId) { document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active')); document.querySelectorAll('.admin-tab-btn').forEach(el => el.classList.remove('active')); $(tabId).classList.add('active'); const btns = document.querySelectorAll('.admin-tab-btn'); if(tabId==='tab-personal') btns[0].classList.add('active'); if(tabId==='tab-proyectos') btns[1].classList.add('active'); if(tabId==='tab-categorias') btns[2].classList.add('active'); if(tabId==='tab-sistema') btns[3].classList.add('active'); }
+async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join(''); $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small style="color:#666;">${u.proyectos_permitidos.length} Proyectos</small></div><button class="btn btn-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join(''); }
+function editarUsuario(id){ const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false); if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; }); }
+async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value); if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})}); $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI(); }
+function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join(''); $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn btn-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join(''); }
+function editarProyecto(id) { const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre; document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false); if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; }); }
+async function guardarActivoFull() { const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value); if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})}); $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin); }
+function renderCats(){ $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); $('listaCats').innerHTML=DATA.categorias.map(c=>`<li><span>${c.nombre} <small>(${c.tipo})</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
+async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
+async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
+async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
+async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
+async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
 async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
 async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración OK. Recargando..."); location.reload(); }catch(err){alert("Error");} }; reader.readAsText(f); }
 function abrirReportes(){$('reporte-overlay').style.display='flex';actualizarReporte();}
