@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* --- DISEÑO ELITE DARK --- */
+    /* --- DISEÑO ELITE DARK (INTACTO) --- */
     :root { 
         --bg:#050505; --card:#111; --sidebar:#080808;
         --text:#e0e0e0; --muted:#666;
@@ -52,15 +52,8 @@
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:8px; color:white; text-transform:uppercase; letter-spacing:0.5px; justify-content:center; transition:0.2s; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
     
-    /* BOTONES DE ACCIÓN (PEQUEÑOS) - LA CORRECCIÓN */
-    .btn-icon { 
-        width: 32px; height: 32px; 
-        padding: 0; 
-        border-radius: 6px; 
-        display: flex; justify-content: center; align-items: center; 
-        cursor: pointer; border: 1px solid transparent; 
-        transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff;
-    }
+    /* BOTONES DE ACCIÓN (PEQUEÑOS) */
+    .btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff; }
     .btn-icon:hover { transform: scale(1.05); }
     .btn-icon.edit:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--blue); color: var(--blue); }
     .btn-icon.del:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--red); color: var(--red); }
@@ -73,7 +66,7 @@
     .bg-purple { background:var(--purple); color:#fff; }
     .bg-cyan { background:var(--cyan); color:#000; }
 
-    /* LISTAS LIMPIAS */
+    /* LISTAS */
     .item-list { overflow-y:auto; flex:1; padding-right:5px; }
     .item-row { display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #1a1a1a; transition:0.2s; border-radius:6px; margin-bottom:2px; }
     .item-row:hover { background:rgba(255,255,255,0.03); }
@@ -83,11 +76,7 @@
     @media print {
         body * { visibility: hidden; }
         #print-area, #print-area * { visibility: visible; }
-        #print-area { 
-            display: block !important; position: absolute; left: 0; top: 0; width: 100%; 
-            background: white; color: black; font-family: 'Helvetica', sans-serif; padding: 40px; box-sizing: border-box; 
-            -webkit-print-color-adjust: exact; print-color-adjust: exact; /* Forzar colores */
-        }
+        #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; font-family: 'Helvetica', sans-serif; padding: 40px; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .print-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
         .print-table th { background-color: #000; color: #fff; padding: 8px; text-align: left; text-transform: uppercase; font-weight: bold; }
         .print-table td { border-bottom: 1px solid #ccc; padding: 8px; color: #000; }
@@ -123,7 +112,7 @@
                 <button class="tab-btn" id="btn-tab-categorias-admin" onclick="switchTab('categorias-admin')">🏷️ Catálogo</button>
                 <button class="tab-btn" id="btn-tab-sistema" onclick="switchTab('sistema')">💾 Sistema</button>
                 <div style="flex:1;"></div>
-                <button class="btn bg-red" style="width:100%;" onclick="$('admin-overlay').style.display='none'">SALIR</button>
+                <button class="btn bg-red" style="width:100%;" onclick="document.getElementById('admin-overlay').style.display='none'">CERRAR PANEL</button>
             </aside>
             <main class="admin-content">
                 <div id="tab-personal" class="tab-section active">
@@ -172,7 +161,10 @@
     <div class="box-lg">
         <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
             <h2>📊 Reporte Financiero</h2>
-            <div style="display:flex;gap:10px;"><button class="btn bg-gold" onclick="imprimirReporte()">🖨️ PDF</button><button class="btn bg-red" onclick="cerrarReportes()">X</button></div>
+            <div style="display:flex;gap:10px;">
+                <button class="btn bg-gold" onclick="imprimirReporte()">🖨️ PDF</button>
+                <button class="btn bg-red" onclick="document.getElementById('reporte-overlay').style.display='none'">X</button>
+            </div>
         </div>
         <div style="display:flex;gap:10px;margin-bottom:15px;">
             <select id="filtroAnio" onchange="actualizarReporte()"><option value="2026">2026</option><option value="2025">2025</option></select>
@@ -187,16 +179,17 @@
             <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">GASTOS</small><div id="repGas" class="big-number" style="color:var(--red)"></div></div>
             <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">NETO</small><div id="repNeto" class="big-number"></div></div>
         </div>
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;flex:1;overflow:hidden;">
-            <div style="position:relative;height:100%;"><canvas id="chartReporteMain"></canvas></div><div style="position:relative;height:100%;"><canvas id="chartReporteCat"></canvas></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;flex:1;overflow:hidden;min-height:0;">
+            <div style="position:relative;height:100%;width:100%;"><canvas id="chartReporteMain"></canvas></div>
+            <div style="position:relative;height:100%;width:100%;"><canvas id="chartReporteCat"></canvas></div>
         </div>
     </div>
 </div>
 
-<div id="cats-overlay" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Mis Categorías</h2><div style="display:flex;gap:10px;"><input id="u-catName" placeholder="Nombre"><select id="u-catType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div><label style="font-size:11px;color:var(--muted);">Asignar:</label><select id="u-catProy"></select><button class="btn bg-green" style="width:100%;margin:10px 0;" onclick="crearCatUser()">AGREGAR</button><div id="u-listaCats" class="item-list" style="max-height:300px;"></div><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="$('cats-overlay').style.display='none'">CERRAR</button></div></div>
-<div id="traspaso-overlay" class="overlay"><div class="box-sm"><h2>Traspaso</h2><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="trasMonto"><label style="font-size:11px;color:var(--muted);">Origen</label><select id="trasOrigen"></select><label style="font-size:11px;color:var(--muted);">Destino</label><select id="trasDestino"></select><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="trasProyecto"></select><label style="font-size:11px;color:var(--muted);">Nota</label><input type="text" id="trasDesc"><div style="display:flex;gap:10px;margin-top:20px;"><button class="btn bg-cyan" style="flex:1;" onclick="ejecutarTraspaso()">CONFIRMAR</button><button class="btn bg-red" style="flex:1;" onclick="$('traspaso-overlay').style.display='none'">CANCELAR</button></div></div></div>
-<div id="arqueo-overlay" class="overlay"><div class="box-sm"><h2>Corte de Caja</h2><div id="listaArqueo" class="item-list" style="max-height:300px;"></div><h2 style="text-align:center;color:var(--green);margin:20px 0;" id="totalArqueo">$0</h2><button class="btn bg-purple" onclick="imprimirArqueo()" style="width:100%;">🖨️ PDF</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="$('arqueo-overlay').style.display='none'">CERRAR</button></div></div>
-<div id="modal" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Registro</h2><input type="hidden" id="movIdEdit"><label style="font-size:11px;color:var(--muted);">Concepto <span style="color:var(--red)">*</span></label><input type="text" id="desc"><div style="display:flex;gap:10px;"><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><div id="createFields"><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:var(--muted);">Cuenta</label><select id="selCuenta"></select></div><label style="font-size:11px;color:var(--muted);">Categoría</label><select id="selCat"></select><div id="divReembolso" style="display:none;margin-bottom:15px;background:#222;padding:10px;border-radius:5px;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--gold);font-size:12px;">⚠️ Pendiente Reembolso</label></div><button class="btn bg-green" style="width:100%;" onclick="guardarMovimiento()">CONFIRMAR</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="$('modal').style.display='none'">CANCELAR</button></div></div>
+<div id="cats-overlay" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Mis Categorías</h2><div style="display:flex;gap:10px;"><input id="u-catName" placeholder="Nombre"><select id="u-catType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div><label style="font-size:11px;color:var(--muted);">Asignar:</label><select id="u-catProy"></select><button class="btn bg-green" style="width:100%;margin:10px 0;" onclick="crearCatUser()">AGREGAR</button><div id="u-listaCats" class="item-list" style="max-height:300px;"></div><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('cats-overlay').style.display='none'">CERRAR</button></div></div>
+<div id="traspaso-overlay" class="overlay"><div class="box-sm"><h2>Traspaso</h2><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="trasMonto"><label style="font-size:11px;color:var(--muted);">Origen</label><select id="trasOrigen"></select><label style="font-size:11px;color:var(--muted);">Destino</label><select id="trasDestino"></select><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="trasProyecto"></select><label style="font-size:11px;color:var(--muted);">Nota</label><input type="text" id="trasDesc"><div style="display:flex;gap:10px;margin-top:20px;"><button class="btn bg-cyan" style="flex:1;" onclick="ejecutarTraspaso()">CONFIRMAR</button><button class="btn bg-red" style="flex:1;" onclick="document.getElementById('traspaso-overlay').style.display='none'">CANCELAR</button></div></div></div>
+<div id="arqueo-overlay" class="overlay"><div class="box-sm"><h2>Corte de Caja</h2><div id="listaArqueo" class="item-list" style="max-height:300px;"></div><h2 style="text-align:center;color:var(--green);margin:20px 0;" id="totalArqueo">$0</h2><button class="btn bg-purple" onclick="imprimirArqueo()" style="width:100%;">🖨️ PDF</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('arqueo-overlay').style.display='none'">CERRAR</button></div></div>
+<div id="modal" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Registro</h2><input type="hidden" id="movIdEdit"><label style="font-size:11px;color:var(--muted);">Concepto <span style="color:var(--red)">*</span></label><input type="text" id="desc"><div style="display:flex;gap:10px;"><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><div id="createFields"><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:var(--muted);">Cuenta</label><select id="selCuenta"></select></div><label style="font-size:11px;color:var(--muted);">Categoría</label><select id="selCat"></select><div id="divReembolso" style="display:none;margin-bottom:15px;background:#222;padding:10px;border-radius:5px;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--gold);font-size:12px;">⚠️ Pendiente Reembolso</label></div><button class="btn bg-green" style="width:100%;" onclick="guardarMovimiento()">CONFIRMAR</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('modal').style.display='none'">CANCELAR</button></div></div>
 
 <div class="top-bar">
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
@@ -204,7 +197,7 @@
         <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
         <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
         <button class="btn bg-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
-        <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️</button>
+        <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
         <button class="btn bg-green" onclick="openModal('ingreso')">⬆ INGRESAR</button>
         <button class="btn bg-red" onclick="openModal('gasto')">⬇ GASTAR</button>
         <button class="btn" style="background:#222;color:#fff;" onclick="logout()">🔓</button>
@@ -237,7 +230,6 @@ function renderAll(){
     $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
     $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
     
-    // LISTAS CON MICRO-BOTONES
     $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div style="display:flex;gap:5px;"><button class="btn-icon edit" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn-icon del" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
     $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="item-row"><div>${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
     renderMovs(DATA.movimientos); updateChart(); populateSelects();
@@ -247,7 +239,6 @@ function renderMovs(movs) {
     $('listMovs').innerHTML=movs.map(m=> { 
         let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
         let actions = ``;
-        // MICRO-BOTONES AQUI TAMBIEN
         if(IS_ADMIN || m.creado_por === CURRENT_USER) { actions = `<div style="display:flex;gap:5px;margin-top:5px;"><button class="btn-icon edit" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn-icon del" onclick="borrarMov('${m._id}')">🗑️</button></div>`; }
         return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; padding:10px; border-bottom:1px solid #222;">
             <div style="display:flex; justify-content:space-between;">
