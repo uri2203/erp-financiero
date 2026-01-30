@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V35 DB-Linked</title>
+<title>ERP CTRFAM | V36 Debt Master</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -199,12 +199,14 @@
     <div class="box-sm">
         <h2 style="margin-bottom:20px;color:var(--orange);">📉 Pasivos & Deudas</h2>
         <div style="background:#151515; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
-            <label style="font-size:11px;color:var(--muted);">Nueva Deuda</label>
+            <label style="font-size:11px;color:var(--muted);">Gestión de Deuda</label>
+            <input type="hidden" id="debtIdEdit">
             <div class="flex-row">
+                <input type="date" id="debtDate" title="Fecha Límite / Pago">
                 <input id="debtName" placeholder="Concepto (Ej. Laptop)">
-                <input id="debtAmount" type="number" placeholder="Total a Pagar">
             </div>
-            <button class="btn bg-green" style="width:100%; justify-content:center;" onclick="addDebt()">+ GUARDAR</button>
+            <input id="debtAmount" type="number" placeholder="Monto Total">
+            <button class="btn bg-green" style="width:100%; justify-content:center;" onclick="saveDebt()">💾 GUARDAR</button>
         </div>
         <div id="debtsList" class="item-list" style="max-height:300px;"></div>
         <div style="display:flex; gap:10px; margin-top:20px;">
@@ -242,20 +244,37 @@
 <script>
 const $ = id => document.getElementById(id);
 let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[], categorias:[] };
-let DEBTS = []; // Ahora se carga desde DB, no LocalStorage
+let DEBTS = [];
 let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
 
-// --- DB-BASED DEBTS LOGIC (NUEVO MOTOR) ---
-function openDebts() { $('debts-overlay').style.display='flex'; renderDebts(); }
+// --- DB-BASED DEBTS LOGIC V36 (EDIT + DELETE + DATE) ---
+function openDebts() { 
+    $('debts-overlay').style.display='flex'; 
+    $('debtIdEdit').value = ''; 
+    $('debtName').value = ''; 
+    $('debtAmount').value = ''; 
+    $('debtDate').value = '';
+    renderDebts(); 
+}
 
-async function addDebt() {
-    const name = $('debtName').value; const amount = parseFloat($('debtAmount').value);
+async function saveDebt() {
+    const id = $('debtIdEdit').value;
+    const name = $('debtName').value; 
+    const amount = parseFloat($('debtAmount').value);
+    const date = $('debtDate').value || new Date().toISOString().split('T')[0];
+
     if(!name || !amount) return alert("Completa los datos");
-    // "Hack" para guardar deuda en DB de proyectos con prefijo especial
-    const dbName = `DEUDA#${amount}#${name}`;
-    await fetch('/api/activos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nombre: dbName, cuentas: [] }) });
-    $('debtName').value=''; $('debtAmount').value=''; loadData();
+    
+    // FORMATO DEUDA: DEUDA#MONTO#NOMBRE#FECHA
+    const dbName = `DEUDA#${amount}#${name}#${date}`;
+    const url = id ? `/api/activos/${id}` : '/api/activos';
+    const method = id ? 'PUT' : 'POST';
+
+    await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nombre: dbName, cuentas: [] }) });
+    
+    $('debtIdEdit').value=''; $('debtName').value=''; $('debtAmount').value=''; $('debtDate').value='';
+    loadData();
 }
 
 async function deleteDebt(id) {
@@ -264,23 +283,29 @@ async function deleteDebt(id) {
     loadData();
 }
 
+function editDebt(id, name, amount, date) {
+    $('debtIdEdit').value = id;
+    $('debtName').value = name;
+    $('debtAmount').value = amount;
+    $('debtDate').value = date;
+}
+
 function renderDebts() {
-    // Las deudas ahora vienen filtradas desde DATA.activos (ver loadData)
     $('debtsList').innerHTML = DEBTS.map(d => {
-        // Parsear el nombre especial: DEUDA#20000#Laptop
+        // Parse: DEUDA#Total#Name#Date
         const parts = d.nombre.split('#');
         const total = parseFloat(parts[1]);
         const realName = parts[2];
+        const dateStr = parts[3] || '';
         
-        // Calcular pagos sumando movimientos vinculados a este activo ID
         const pagos = DATA.movimientos.filter(m => m.activo_id && m.activo_id._id === d._id).reduce((sum, m) => sum + Math.abs(m.monto), 0);
         const restante = total - pagos;
         const progress = Math.min((pagos / total) * 100, 100);
         const isPaid = restante <= 0;
 
-        return `<div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333;">
+        return `<div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333; position:relative;">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <span style="font-weight:bold; color:#fff;">${realName}</span>
+                <span style="font-weight:bold; color:#fff;">${realName} <small style="color:#666; font-weight:normal;">(${dateStr})</small></span>
                 <span style="font-size:12px; color:${isPaid?'var(--green)':'var(--orange)'}">${isPaid ? 'PAGADO' : 'PENDIENTE'}</span>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
@@ -289,7 +314,11 @@ function renderDebts() {
             </div>
             <div class="progress-track"><div class="progress-fill" style="width:${progress}%; background:${isPaid?'var(--green)':'var(--blue)'}"></div></div>
             ${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d._id}', '${realName}')">ABONAR A CAPITAL</button>` : ''}
-            <button class="btn-icon del" style="position:absolute; margin-top:-70px; right:35px;" onclick="deleteDebt('${d._id}')">🗑️</button>
+            
+            <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
+                <button class="btn-icon edit" onclick="editDebt('${d._id}', '${realName}', ${total}, '${dateStr}')">✏️</button>
+                <button class="btn-icon del" onclick="deleteDebt('${d._id}')">🗑️</button>
+            </div>
         </div>`;
     }).join('');
 }
@@ -298,8 +327,6 @@ function payDebt(id, name) {
     $('debts-overlay').style.display='none';
     openModal('gasto');
     $('desc').value = `Abono a ${name}`;
-    // Seleccionar el proyecto "Deuda" oculto para vincular el pago
-    // Creamos la opción temporalmente si no existe para que se seleccione visualmente
     const opt = document.createElement('option');
     opt.value = id; opt.text = `[DEUDA] ${name}`;
     $('selActivo').add(opt);
@@ -317,19 +344,17 @@ async function loadData(){
     try{
         const r=await fetch(`/api/data?user=${CURRENT_USER}`); 
         const rawData=await r.json(); 
-        
-        // SEPARAR DEUDAS DE PROYECTOS REALES (Filtro Inteligente)
         DATA.cuentas = rawData.cuentas;
         DATA.movimientos = rawData.movimientos;
         DATA.pendientes = rawData.pendientes;
         DATA.categorias = rawData.categorias;
         DATA.patrimonio = rawData.patrimonio;
-
-        // Aquí ocurre la magia: Separamos lo que empieza con DEUDA#
+        
+        // Filter Logic V35+
         DATA.activos = rawData.activos.filter(a => !a.nombre.startsWith('DEUDA#'));
         DEBTS = rawData.activos.filter(a => a.nombre.startsWith('DEUDA#'));
 
-        renderAll(); populateFilters(); if(IS_ADMIN) renderDebts();
+        renderAll(); populateFilters(); if(IS_ADMIN && document.getElementById('debts-overlay').style.display === 'flex') renderDebts();
     }catch(e){console.error(e);}
 }
 
@@ -337,11 +362,8 @@ function renderAll(){
     $('btnReportes').style.display='flex'; $('totalPatrimonio').innerText=fmtMoney(DATA.patrimonio);
     if(IS_ADMIN){ $('btnAdmin').style.display='flex'; $('btnAddCta').style.display='block'; $('btnDebts').style.display='flex'; }
     else{ $('btnAdmin').style.display='none'; $('btnAddCta').style.display='none'; $('btnDebts').style.display='none'; }
-    
     $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
     $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
-    
-    // Listas con botones arreglados
     $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div style="display:flex;gap:5px;"><button class="btn-icon edit" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn-icon del" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
     $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="item-row"><div>${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
     renderMovs(DATA.movimientos); updateChart(); populateSelects();
@@ -362,55 +384,6 @@ function renderMovs(movs) {
     }).join('');
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
-
-// --- REPORTES ---
-function abrirReportes(){ try { $('reporte-overlay').style.display='flex'; if(DATA.cuentas) $('report-accounts-list').innerHTML = DATA.cuentas.map(c => `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;"><input type="checkbox" class="chk-report-account" value="${c._id}" onchange="actualizarReporte()"> ${c.nombre}</label>`).join(''); actualizarReporte(); } catch(e) { console.error(e); $('reporte-overlay').style.display='flex'; } }
-async function actualizarReporte(){
-    const anio=$('filtroAnio').value, mes=$('filtroMes').value, activo_id=$('filtroProyecto').value;
-    const selected = Array.from(document.querySelectorAll('.chk-report-account:checked')).map(cb => cb.value);
-    const cuentas_ids = selected.length > 0 ? selected : 'todas';
-    try {
-        const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER, cuentas_ids})});
-        const rep=await r.json(); 
-        let tIng = 0, tGas = 0; if(rep.detalles) { rep.detalles.forEach(m => { if(m.monto > 0) tIng += m.monto; else tGas += Math.abs(m.monto); }); }
-        rep.ingresos = tIng; rep.gastos = tGas; rep.neto = tIng - tGas;
-        REPORT_CACHE=rep;
-        $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
-        const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{grid:{color:'#333'}}}}});
-        const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy(); 
-        const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{}); 
-        repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});
-    } catch(e){console.error(e);}
-}
-
-// --- IMPRESION ---
-function imprimirHTML(h){ const p=document.getElementById('print-area'); p.innerHTML=h; window.print(); p.innerHTML=''; }
-function imprimirReporte(){
-    if(!REPORT_CACHE) return alert("Carga datos");
-    const rows = REPORT_CACHE.detalles.map(m => `<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id?m.activo_id.nombre:'General'}</td><td>${m.cuenta_id?m.cuenta_id.nombre:'-'}</td><td class="text-right ${m.monto<0?'text-red-print':''}">${m.monto<0?'-':''}${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');
-    const h=`<div class="print-header"><div class="print-logo">REPORTE CTRFAM</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div><div class="print-summary"><div class="print-val-label">ENTRADAS<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.ingresos)}</span></div><div class="print-val-label">SALIDAS<br><span class="print-val-num text-red-print">${fmtMoney(REPORT_CACHE.gastos)}</span></div><div class="print-val-label">NETO<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.neto)}</span></div></div><table class="print-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Proyecto</th><th>Cuenta</th><th class="text-right">Monto</th></tr></thead><tbody>${rows}</tbody></table>`;
-    imprimirHTML(h);
-}
-function imprimirReporteDeudas() {
-    let html = `<div class="print-header"><div class="print-logo">ESTADO DE PASIVOS</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div>`;
-    DEBTS.forEach(d => {
-        const parts = d.nombre.split('#'); const total = parseFloat(parts[1]); const name = parts[2];
-        const payments = DATA.movimientos.filter(m => m.activo_id && m.activo_id._id === d._id).sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-        const abonado = payments.reduce((sum, m) => sum + Math.abs(m.monto), 0);
-        const restante = total - abonado;
-        const rows = payments.map(p => `<tr><td>${new Date(p.fecha).toLocaleDateString()}</td><td>${p.descripcion}</td><td class="text-right">${fmtMoney(Math.abs(p.monto))}</td></tr>`).join('');
-        html += `<div class="debt-container"><div style="display:flex; justify-content:space-between; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom:10px;"><b style="font-size:14px;">${name.toUpperCase()}</b><b style="font-size:14px;">TOTAL: ${fmtMoney(total)}</b></div>${rows ? `<table class="print-table"><thead><tr><th>FECHA</th><th>CONCEPTO</th><th class="text-right">ABONO</th></tr></thead><tbody>${rows}</tbody></table>` : '<p style="font-style:italic;">Sin abonos.</p>'}<div style="display:flex; justify-content:flex-end; gap:20px; margin-top:10px; font-weight:bold; border-top:1px solid #ccc; padding-top:5px;"><span>PAGADO: ${fmtMoney(abonado)}</span><span style="color:${restante > 0 ? '#d00' : 'green'}">RESTANTE: ${fmtMoney(restante)}</span></div></div>`;
-    });
-    imprimirHTML(html);
-}
-function imprimirArqueo(){
-    let total=0, items=[]; document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{ const v=parseFloat(k.value); total+=v; items.push({n:k.dataset.n, s:v}); });
-    if(items.length===0) return alert("Selecciona");
-    fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total,detalles:items.map(i=>({cuenta:i.n,saldo:i.s}))})});
-    const rows = items.map(i=>`<tr><td>${i.n}</td><td class="text-right">${fmtMoney(i.s)}</td></tr>`).join('');
-    const h=`<div class="print-header"><div class="print-logo">CORTE DE CAJA</div><p>${CURRENT_USER} | ${new Date().toLocaleString()}</p></div><table class="print-table"><thead><tr><th>CUENTA / CAJA</th><th class="text-right">SALDO</th></tr></thead><tbody>${rows}</tbody></table><h2 style="text-align:right; margin-top:20px;">TOTAL: ${fmtMoney(total)}</h2><br><br><br><div style="border-top:1px solid #000; width:200px; margin:50px auto; text-align:center;">Firma Responsable</div>`;
-    imprimirHTML(h);
-}
 
 // ADMIN
 function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCatsAdmin(); }
@@ -461,10 +434,46 @@ async function borrarCatUser(id) { if(confirm("Borrar?")) await fetch(`/api/cate
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
 async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
+async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
 async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup.json`; a.click(); }
 async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración OK. Recargando..."); location.reload(); }catch(err){alert("Error");} }; reader.readAsText(f); }
 function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
 function populateFilters(){ if(DATA.activos) $('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); }
+
+// IMPRESION DEUDAS DETALLADA
+function imprimirReporteDeudas() {
+    let html = `<div class="print-header"><div class="print-logo">ESTADO DE PASIVOS</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div>`;
+    DEBTS.forEach(d => {
+        const parts = d.nombre.split('#');
+        const total = parseFloat(parts[1]);
+        const name = parts[2];
+        const dateStr = parts[3] || 'Sin Fecha';
+        
+        const payments = DATA.movimientos.filter(m => m.activo_id && m.activo_id._id === d._id).sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+        const abonado = payments.reduce((sum, m) => sum + Math.abs(m.monto), 0);
+        const restante = total - abonado;
+        
+        const rows = payments.map(p => `<tr><td>${new Date(p.fecha).toLocaleDateString()}</td><td>${p.descripcion}</td><td class="text-right">${fmtMoney(Math.abs(p.monto))}</td></tr>`).join('');
+        
+        html += `<div class="debt-container">
+            <div style="display:flex; justify-content:space-between; border-bottom:2px solid #000; padding-bottom:5px; margin-bottom:10px;">
+                <b style="font-size:14px;">${name.toUpperCase()}</b>
+                <b style="font-size:14px;">VENCE: ${dateStr}</b>
+            </div>
+            <div style="margin-bottom:10px;"><b>MONTO TOTAL A PAGAR: ${fmtMoney(total)}</b></div>
+            ${rows ? `<table class="print-table"><thead><tr><th>FECHA</th><th>CONCEPTO</th><th class="text-right">ABONO</th></tr></thead><tbody>${rows}</tbody></table>` : '<p style="font-style:italic; font-size:11px;">Sin abonos registrados.</p>'}
+            <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:10px; font-weight:bold; border-top:1px solid #ccc; padding-top:5px;">
+                <span>TOTAL ABONADO: ${fmtMoney(abonado)}</span>
+                <span style="color:${restante > 0 ? '#d00' : 'green'}">RESTANTE: ${fmtMoney(restante)}</span>
+            </div>
+        </div>`;
+    });
+    imprimirHTML(html);
+}
+// --- IMPRESION (RESTO) ---
+function imprimirHTML(h){ const p=document.getElementById('print-area'); p.innerHTML=h; window.print(); p.innerHTML=''; }
+function imprimirReporte(){ if(!REPORT_CACHE) return alert("Carga datos"); const rows = REPORT_CACHE.detalles.map(m => { const isGasto = m.tipo === 'gasto' || m.tipo === 'traspaso_salida'; const colorClass = isGasto ? 'text-red-print' : ''; const signo = isGasto ? '-' : ''; return `<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id?m.activo_id.nombre:'General'}</td><td>${m.cuenta_id?m.cuenta_id.nombre:'-'}</td><td class="text-right ${colorClass}">${signo}${fmtMoney(Math.abs(m.monto))}</td></tr>`; }).join(''); const h=`<div class="print-header"><div class="print-logo">REPORTE CTRFAM</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div><div class="print-summary"><div class="print-val-label">ENTRADAS<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.ingresos)}</span></div><div class="print-val-label">SALIDAS<br><span class="print-val-num text-red-print">${fmtMoney(REPORT_CACHE.gastos)}</span></div><div class="print-val-label">NETO<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.neto)}</span></div></div><table class="print-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Proyecto</th><th>Cuenta</th><th class="text-right">Monto</th></tr></thead><tbody>${rows}</tbody></table>`; imprimirHTML(h); }
+function imprimirArqueo(){ let total=0, items=[]; document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{ const v=parseFloat(k.value); total+=v; items.push({n:k.dataset.n, s:v}); }); if(items.length===0) return alert("Selecciona"); fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total,detalles:items.map(i=>({cuenta:i.n,saldo:i.s}))})}); const rows = items.map(i=>`<tr><td>${i.n}</td><td class="text-right">${fmtMoney(i.s)}</td></tr>`).join(''); const h=`<div class="print-header"><div class="print-logo">CORTE DE CAJA</div><p>${CURRENT_USER} | ${new Date().toLocaleString()}</p></div><table class="print-table"><thead><tr><th>CUENTA / CAJA</th><th class="text-right">SALDO</th></tr></thead><tbody>${rows}</tbody></table><h2 style="text-align:right; margin-top:20px;">TOTAL: ${fmtMoney(total)}</h2><br><br><br><div style="border-top:1px solid #000; width:200px; margin:50px auto; text-align:center;">Firma Responsable</div>`; imprimirHTML(h); }
 </script>
 </body>
 </html>
