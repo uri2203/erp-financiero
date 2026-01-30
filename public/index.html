@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* --- ESTILOS DEL SISTEMA (MODO OSCURO) --- */
+    /* ESTILOS GLOBALES */
     :root { --bg:#09090b; --card:#18181b; --sidebar:#111; --text:#fafafa; --gray:#a1a1aa; --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#eab308; --border:#27272a; --cyan:#06b6d4; --purple:#8b5cf6; }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
@@ -26,14 +26,19 @@
     /* ADMIN MODULAR */
     .admin-container { width:90%; max-width:1000px; height:85vh; background:var(--card); border:1px solid #333; border-radius:15px; display:flex; overflow:hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.8); }
     .admin-sidebar { width:200px; background:var(--sidebar); border-right:1px solid var(--border); padding:20px 10px; display:flex; flex-direction:column; gap:5px; }
+    
+    /* Botones del Sidebar Admin */
     .admin-tab-btn { background:transparent; border:none; color:#777; padding:12px; text-align:left; cursor:pointer; border-radius:8px; font-weight:600; font-size:13px; transition:0.2s; display:flex; align-items:center; gap:10px; }
     .admin-tab-btn:hover { background:#222; color:#fff; }
     .admin-tab-btn.active { background:#222; color:var(--blue); border-left:3px solid var(--blue); }
-    .admin-content { flex:1; padding:30px; overflow-y:auto; background:var(--bg); }
-    .admin-section { display:none; animation: fadeIn 0.3s ease; }
-    .admin-section.active { display:block; } /* Importante para que se vea */
     
+    .admin-content { flex:1; padding:30px; overflow-y:auto; background:var(--bg); }
+    
+    /* Secciones del Admin */
+    .admin-section { display:none; animation: fadeIn 0.3s ease; }
+    .admin-section.active { display:block; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+    
     .admin-form-group { background:#151515; padding:20px; border-radius:10px; border:1px solid #333; margin-bottom:20px; }
     .admin-list { list-style:none; padding:0; margin:0; }
     .admin-list li { display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #222; }
@@ -100,10 +105,10 @@
     <div class="admin-container">
         <aside class="admin-sidebar">
             <h3 style="color:#fff; font-size:12px; padding-left:10px; margin-bottom:10px; opacity:0.5;">ADMINISTRACIÓN</h3>
-            <button class="admin-tab-btn active" onclick="switchTab('tab-personal')">👥 Personal</button>
-            <button class="admin-tab-btn" onclick="switchTab('tab-proyectos')">🚀 Proyectos</button>
-            <button class="admin-tab-btn" onclick="switchTab('tab-categorias-admin')">🏷️ Catálogo Global</button>
-            <button class="admin-tab-btn" onclick="switchTab('tab-sistema')">💾 Sistema</button>
+            <button class="admin-tab-btn active" id="btn-tab-personal" onclick="switchTab('personal')">👥 Personal</button>
+            <button class="admin-tab-btn" id="btn-tab-proyectos" onclick="switchTab('proyectos')">🚀 Proyectos</button>
+            <button class="admin-tab-btn" id="btn-tab-categorias-admin" onclick="switchTab('categorias-admin')">🏷️ Catálogo Global</button>
+            <button class="admin-tab-btn" id="btn-tab-sistema" onclick="switchTab('sistema')">💾 Sistema</button>
             <div style="flex:1;"></div>
             <button class="btn btn-red" style="width:100%;" onclick="$('admin-overlay').style.display='none'">CERRAR PANEL</button>
         </aside>
@@ -338,8 +343,18 @@ function imprimirHTML(h){const p=document.getElementById('print-area');p.innerHT
 function imprimirReporte(){if(!REPORT_CACHE)return alert("Carga datos");const r=REPORT_CACHE.detalles.map(m=>`<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id?m.activo_id.nombre:'General'}</td><td>${m.cuenta_id?m.cuenta_id.nombre:'-'}</td><td style="text-align:right;font-weight:bold;${(m.tipo==='gasto'||m.tipo==='traspaso_salida')?'color:#dc2626;':''}">${(m.tipo==='gasto'||m.tipo==='traspaso_salida')?'-':''}${fmtMoney(Math.abs(m.monto))}</td></tr>`).join('');const h=`<div style="font-family:sans-serif;padding:20px;"><h1 style="text-align:center;">REPORTE CTRFAM</h1><p style="text-align:center;">${CURRENT_USER} | ${new Date().toLocaleDateString()}</p><hr><div style="display:flex;justify-content:space-between;margin:20px 0;font-size:18px;font-weight:bold;"><div>Ingresos: ${fmtMoney(REPORT_CACHE.ingresos)}</div><div style="color:#dc2626;">Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div><div>Neto: ${fmtMoney(REPORT_CACHE.neto)}</div></div><hr><table style="width:100%;border-collapse:collapse;margin-top:20px;"><tr style="background:#eee;"><th style="padding:8px;border:1px solid #ccc;text-align:left;">Fecha</th><th style="padding:8px;border:1px solid #ccc;text-align:left;">Descripción</th><th style="padding:8px;border:1px solid #ccc;text-align:left;">Proyecto</th><th style="padding:8px;border:1px solid #ccc;text-align:left;">Cuenta</th><th style="padding:8px;border:1px solid #ccc;text-align:right;">Monto</th></tr>${r}</table></div>`;imprimirHTML(h);}
 function imprimirArqueo(){let t=0,i=[];document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{const v=parseFloat(k.value);t+=v;i.push({nombre:k.dataset.n,saldo:v});});if(i.length===0)return alert("Selecciona");fetch('/api/arqueo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:CURRENT_USER,total:t,detalles:i.map(x=>({cuenta:x.nombre,saldo:x.saldo}))})});const r=i.map(x=>`<tr><td style="padding:10px;border-bottom:1px solid #ccc;">${x.nombre}</td><td style="padding:10px;border-bottom:1px solid #ccc;text-align:right;">${fmtMoney(x.saldo)}</td></tr>`).join('');const h=`<div style="font-family:sans-serif;padding:40px;"><h1 style="text-align:center;">CORTE DE CAJA</h1><p style="text-align:center;">${CURRENT_USER} <br> ${new Date().toLocaleString()}</p><br><table style="width:100%;border-collapse:collapse;"><tr style="background:#000;color:#fff;"><th style="padding:10px;text-align:left;">CUENTA</th><th style="padding:10px;text-align:right;">SALDO</th></tr>${r}</table><h2 style="text-align:right;margin-top:30px;">TOTAL: ${fmtMoney(t)}</h2><br><br><br><div style="border-top:1px solid #000;width:200px;margin:50px auto;text-align:center;">Firma</div></div>`;imprimirHTML(h);}
 // ADMIN
-function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('tab-personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCatsAdmin(); }
-function switchTab(t){document.querySelectorAll('.admin-section').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.admin-tab-btn').forEach(e=>e.classList.remove('active'));$(`tab-${t}`).classList.add('active');}
+function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCatsAdmin(); }
+function switchTab(t){
+    document.querySelectorAll('.admin-section').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-btn').forEach(e=>e.classList.remove('active'));
+    
+    // CORRECCIÓN: Usar ID exacto 'tab-' + t
+    const panel = document.getElementById(`tab-${t}`);
+    const btn = document.getElementById(`btn-tab-${t}`);
+    
+    if(panel) panel.classList.add('active');
+    if(btn) btn.classList.add('active');
+}
 async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join(''); $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small style="color:#666;">${u.proyectos_permitidos.length} Proyectos</small></div><button class="btn btn-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join(''); }
 function editarUsuario(id){ const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false); if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; }); }
 async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value); if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})}); $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI(); }
