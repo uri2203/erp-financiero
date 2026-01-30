@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Pro</title>
+<title>ERP CTRFAM | Pro V22</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* --- 1. ESTILO VISUAL "PRO" (RESTAURADO) --- */
+    /* --- 1. DISEÑO "PRO" (OSCURO ORIGINAL) --- */
     :root { 
         --bg:#09090b; --card:#18181b; --sidebar:#111; 
         --text:#fafafa; --gray:#a1a1aa; 
@@ -28,9 +28,9 @@
     .box-sm { width:95%; max-width:450px; background:#111; border:1px solid #333; border-radius:15px; padding:25px; display:flex; flex-direction:column; box-shadow: 0 20px 50px rgba(0,0,0,0.7); }
     .box-lg { width:95%; max-width:1000px; height:85vh; background:#111; border:1px solid #333; border-radius:15px; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.8); }
 
-    /* ADMIN LAYOUT (RESTAURADO) */
-    .admin-container { display:flex; height:100%; }
-    .admin-sidebar { width:200px; background:var(--sidebar); border-right:1px solid var(--border); padding:20px 10px; display:flex; flex-direction:column; gap:5px; }
+    /* ADMIN LAYOUT */
+    .admin-container { display:flex; height:100%; width:100%; }
+    .admin-sidebar { width:200px; background:var(--sidebar); border-right:1px solid var(--border); padding:20px 10px; display:flex; flex-direction:column; gap:5px; flex-shrink:0; }
     .admin-content { flex:1; padding:30px; overflow-y:auto; background:var(--bg); }
     
     /* BOTONES TABS */
@@ -176,12 +176,12 @@
     <div class="box-sm">
         <h2 style="color:#fff; border:none; margin-bottom:15px;">Mis Categorías</h2>
         <div class="flex-row">
-            <input type="text" id="u-catName" placeholder="Nombre (Ej. Taxis)">
+            <input type="text" id="u-catName" placeholder="Nombre (Ej. Taxis, Comidas)">
             <select id="u-catType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select>
         </div>
         <label style="font-size:11px;color:#aaa;">Asignar a Proyecto:</label>
-        <select id="u-catProy"></select>
-        <button class="btn bg-green" style="width:100%; margin-top:10px; margin-bottom:20px;" onclick="crearCatUser()">AGREGAR</button>
+        <select id="u-catProy"></select> <button class="btn bg-green" style="width:100%; margin-top:10px; margin-bottom:20px;" onclick="crearCatUser()">AGREGAR A MI LISTA</button>
+        
         <h3 style="font-size:12px; color:#aaa; border-bottom:1px solid #333; padding-bottom:5px;">MIS REGISTROS</h3>
         <ul id="u-listaCats" class="admin-list" style="max-height:300px; overflow-y:auto;"></ul>
         <button class="btn bg-red" style="width:100%; margin-top:10px;" onclick="$('cats-overlay').style.display='none'">CERRAR</button>
@@ -226,8 +226,7 @@
 <div class="top-bar">
     <div><div style="font-size:10px;color:var(--gray);text-transform:uppercase;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
     <div style="display:flex;gap:10px;">
-        <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
-        <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
+        <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button> <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
         <button class="btn bg-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
         <button class="btn bg-green" onclick="openModal('ingreso')">⬆ INGRESAR</button>
@@ -237,9 +236,9 @@
 </div>
 <div id="radar-alertas" style="display:none; flex-direction:column; gap:10px; margin-bottom:20px;"></div>
 <div class="grid">
-    <div class="card"><div class="card-header"><h2>🏦 Cuentas</h2><div style="display:flex;gap:5px;"><button class="btn bg-purple btn-small" onclick="abrirArqueo()">🧮 CORTE</button><button class="btn bg-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+</button></div></div><div id="listCuentas" class="item-list"></div></div>
+    <div class="card"><div class="card-header"><h2>🏦 Cuentas</h2><div style="display:flex;gap:5px;"><button class="btn bg-purple btn-small" onclick="abrirArqueo()">🧮 CORTE</button><button class="btn bg-blue btn-small" id="btnAddCta" style="display:none;" onclick="crearCuenta()">+</button></div></div><div id="listCuentas"></div></div>
     <div class="card"><div class="card-header"><h2>🚀 Proyectos</h2></div><div id="gridActivos" style="margin-bottom:10px;"></div><div style="flex:1;position:relative;border-top:1px solid #333;padding:10px;"><canvas id="chartActivos"></canvas></div></div>
-    <div class="card"><div class="card-header"><h2>📝 Movimientos</h2><input type="text" id="searchMovs" placeholder="🔍 Buscar..." style="width:100px;padding:5px;font-size:11px;" onkeyup="filtrarMovimientos()"></div><ul id="listMovs" class="item-list"></ul></div>
+    <div class="card"><div class="card-header"><h2>📝 Movimientos</h2><input type="text" id="searchMovs" placeholder="🔍 Buscar..." style="width:100px;padding:5px;font-size:11px;" onkeyup="filtrarMovimientos()"></div><ul id="listMovs"></ul></div>
 </div>
 
 <script>
@@ -257,8 +256,8 @@ function renderAll(){
     if(IS_ADMIN){$('btnAdmin').style.display='flex';$('btnAddCta').style.display='block';}else{$('btnAdmin').style.display='none';$('btnAddCta').style.display='none';}
     $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
     $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
-    $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div class="editable-actions"><button class="btn bg-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn bg-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
-    $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="item-row"><div>${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
+    $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="editable-item"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div class="editable-actions"><button class="btn bg-blue btn-small" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn bg-red btn-small" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
+    $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="editable-item" style="background:#151515;"><div style="flex:1;"><div style="font-size:11px;color:#888;">${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div></div>`).join('');
     renderMovs(DATA.movimientos); updateChart(); populateSelects();
 }
 
@@ -267,7 +266,7 @@ function renderMovs(movs) {
         let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
         let actions = ``;
         if(IS_ADMIN || m.creado_por === CURRENT_USER) { actions = `<div class="flex-row" style="margin-top:5px;"><button class="btn bg-blue btn-small" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn bg-red btn-small" onclick="borrarMov('${m._id}')">🗑️</button></div>`; }
-        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; flex-direction:column; align-items:flex-start;" class="item-row"><div style="display:flex; justify-content:space-between; width:100%;"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></div>${actions}</li>` 
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; flex-direction:column; align-items:flex-start;"><div style="display:flex; justify-content:space-between; width:100%;"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></div>${actions}</li>` 
     }).join('');
 }
 function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
@@ -275,12 +274,26 @@ function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); ren
 // --- GESTION CATEGORIAS USUARIO ---
 function abrirCatsUser() {
     $('cats-overlay').style.display='flex';
+    // Llenar proyectos asignados + OTROS
     $('u-catProy').innerHTML = '<option value="">--- General / Otros ---</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join('');
     renderCatsUser();
 }
 function renderCatsUser() {
-    const list = DATA.categorias.filter(c => { if(!c.proyecto_id) return true; return DATA.activos.some(a => a._id === c.proyecto_id._id); });
-    $('u-listaCats').innerHTML=list.map(c=>`<li class="item-row"><div><span style="font-weight:bold;">${c.nombre}</span> <small style="color:#aaa">${c.proyecto_id ? c.proyecto_id.nombre : 'General'}</small></div><button class="btn bg-red btn-small" onclick="borrarCatUser('${c._id}')">🗑️</button></li>`).join('');
+    const list = DATA.categorias.filter(c => {
+        // Mostrar categorias donde el proyecto es null (General) o es uno de los asignados al usuario
+        if(!c.proyecto_id) return true; // General
+        return DATA.activos.some(a => a._id === c.proyecto_id._id); // Pertenece a mis proyectos
+    });
+    $('u-listaCats').innerHTML=list.map(c=>`
+        <li style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="font-weight:bold;">${c.nombre}</span>
+                <span style="font-size:10px; padding:2px 5px; border-radius:4px; background:${c.tipo==='ingreso'?'var(--green)':'var(--red)'}; color:#000; margin-left:5px;">${c.tipo.toUpperCase()}</span>
+                <div style="font-size:11px; color:#666;">${c.proyecto_id ? c.proyecto_id.nombre : 'General'}</div>
+            </div>
+            <button class="btn bg-red btn-small" onclick="borrarCatUser('${c._id}')">🗑️</button>
+        </li>
+    `).join('');
 }
 async function crearCatUser() {
     const n=$('u-catName').value, t=$('u-catType').value, p=$('u-catProy').value; 
@@ -299,32 +312,36 @@ function openModal(t){
 }
 function filtrarCategorias() { 
     const projId = $('selActivo').value;
+    // Si selecciona "others" (valor vacío), busca categorias sin proyecto_id
     const cats = DATA.categorias.filter(c => {
-        if(projId === "") return !c.proyecto_id && c.tipo === currentTipo;
+        if(projId === "") return !c.proyecto_id && c.tipo === currentTipo; // Filtra generales
         return c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId);
     });
     $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; 
 }
 function populateSelects(){
     $('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');
-    $('selActivo').innerHTML = (IS_ADMIN?`<option value="">-- Personal --</option>`:'') + DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('') + '<option value="">--- Otros / Varios ---</option>';
+    // Agregar opción OTROS / VARIOS
+    $('selActivo').innerHTML = (IS_ADMIN?`<option value="">-- Personal --</option>`:'') + 
+                                DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('') +
+                                '<option value="">--- Otros / Varios ---</option>';
 }
 async function guardarMovimiento(){
     const d=$('desc').value; if(!d) return alert("Concepto obligatorio");
     const id = $('movIdEdit').value; 
-    const p = $('selActivo').value; 
+    const p = $('selActivo').value; // Si es "", es null (Otros)
     const body = { descripcion:d, monto:$('monto').value, tipo:currentTipo, categoria:$('selCat').value, usuario_actual:CURRENT_USER }; 
     if(id) { await fetch(`/api/movimiento/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); } 
     else { body.cuenta_id = $('selCuenta').value; body.activo_id = p || null; body.estado = ($('chkReembolso').checked && currentTipo==='gasto') ? 'pendiente_reembolso' : 'finalizado'; await fetch('/api/movimiento', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); } 
     closeModal(); loadData(); 
 }
 
-// OTROS
+// OTROS (Sin cambios mayores)
 async function borrarMov(id) { if(!confirm("¿Seguro?")) return; await fetch(`/api/movimiento/${id}`, {method:'DELETE'}); loadData(); }
 function editarMov(m) { if(m.tipo.includes('traspaso')) return alert("Borra y crea de nuevo los traspasos."); $('movIdEdit').value = m._id; $('desc').value = m.descripcion; $('monto').value = Math.abs(m.monto); $('tipoTxt').value = m.tipo.toUpperCase(); currentTipo = m.tipo; $('createFields').style.display = 'none'; const projId = m.activo_id ? m.activo_id._id : ''; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; $('selCat').value = m.categoria; $('modal').style.display='flex'; }
 function closeModal(){$('modal').style.display='none';}
 async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
-function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"> ${c.nombre}</label> <strong>${fmtMoney(c.saldo)}</strong></div>`).join('');calcArq();}
+function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #222;"><div style="display:flex;gap:10px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"><span>${c.nombre}</span></div><span>${fmtMoney(c.saldo)}</span></div>`).join('');calcArq();}
 function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
 function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
 async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
@@ -336,17 +353,17 @@ function imprimirArqueo(){let t=0,i=[];document.querySelectorAll('.chk-arqueo:ch
 function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCatsAdmin(); }
 function switchTab(t){
     document.querySelectorAll('.admin-section').forEach(e=>e.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-btn').forEach(e=>e.classList.remove('active'));
     const panel = document.getElementById(`tab-${t}`); const btn = document.getElementById(`btn-tab-${t}`);
     if(panel) panel.classList.add('active'); if(btn) btn.classList.add('active');
 }
-async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join(''); $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<div class="item-row"><b>${u.user}</b> <button class="btn bg-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></div>`).join(''); }
+async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"><span style="font-size:11px;">${a.nombre}</span></div>`).join(''); $('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<li><div><strong>${u.user}</strong><br><small style="color:#666;">${u.proyectos_permitidos.length} Proyectos</small></div><button class="btn bg-blue btn-small" onclick="editarUsuario('${u._id}')">✏️</button></li>`).join(''); }
 function editarUsuario(id){ const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false); if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; }); }
 async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value); if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})}); $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI(); }
-function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join(''); $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<div class="item-row"><b>${a.nombre}</b> <button class="btn bg-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button></div>`).join(''); }
+function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join(''); $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn bg-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn bg-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join(''); }
 function editarProyecto(id) { const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre; document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false); if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; }); }
 async function guardarActivoFull() { const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value); if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})}); $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin); }
-function renderCatsAdmin(){ $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); let l=DATA.categorias; const f=$('catFilterProy').value; if($('catFilterProy').options.length===1){DATA.activos.forEach(a=>{$('catFilterProy').appendChild(new Option(a.nombre,a._id))});$('catFilterProy').appendChild(new Option('General','general'));} if(f!=='all'){if(f==='general')l=l.filter(c=>!c.proyecto_id);else l=l.filter(c=>c.proyecto_id&&c.proyecto_id._id===f);} $('listaCatsAdmin').innerHTML=l.map(c=>`<li class="item-row"><span>${c.nombre} <small>(${c.tipo}) [${c.proyecto_id?c.proyecto_id.nombre:'General'}]</small></span><button class="btn bg-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
+function renderCatsAdmin(){ $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); let l=DATA.categorias; const f=$('catFilterProy').value; if($('catFilterProy').options.length===1){DATA.activos.forEach(a=>{$('catFilterProy').appendChild(new Option(a.nombre,a._id))});$('catFilterProy').appendChild(new Option('General','general'));} if(f!=='all'){if(f==='general')l=l.filter(c=>!c.proyecto_id);else l=l.filter(c=>c.proyecto_id&&c.proyecto_id._id===f);} $('listaCatsAdmin').innerHTML=l.map(c=>`<li><span>${c.nombre} <small>(${c.tipo}) [${c.proyecto_id?c.proyecto_id.nombre:'General'}]</small></span><button class="btn bg-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
 async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCatsAdmin); }
 async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCatsAdmin); }
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
