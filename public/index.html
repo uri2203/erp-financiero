@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V36 Debt Master</title>
+<title>ERP CTRFAM | V38 Blindado</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -17,7 +17,7 @@
     }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
     
-    /* UTILS */
+    /* MODALS */
     .overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); backdrop-filter:blur(5px); z-index:9999; display:none; justify-content:center; align-items:center; }
     .box-sm { width:400px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:30px; box-shadow:0 20px 50px rgba(0,0,0,0.8); display:flex; flex-direction:column; }
     .box-lg { width:95%; max-width:1100px; height:90vh; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; display:flex; flex-direction:column; box-shadow:0 30px 60px rgba(0,0,0,0.9); }
@@ -124,6 +124,7 @@
                 <div id="tab-personal" class="tab-section active">
                     <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:20px;">Gestión de Usuarios</h2>
                     <div class="admin-form-group">
+                        <h3 style="margin:0 0 10px 0; font-size:12px; color:var(--blue);" id="userTitle">NUEVO EMPLEADO</h3>
                         <input type="hidden" id="userIdEdit">
                         <div class="flex-row"><input type="text" id="new_fullname" placeholder="Nombre Completo"><input type="text" id="new_user" placeholder="Usuario"></div>
                         <input type="text" id="new_pass" placeholder="Contraseña">
@@ -131,6 +132,7 @@
                         <div id="checklistProyectos" class="checklist-box"></div>
                         <button class="btn bg-blue" style="width:100%; margin-top:15px;" onclick="guardarUsuario()">GUARDAR USUARIO</button>
                     </div>
+                    <h3 style="font-size:12px; color:#aaa; margin-top:20px;">LISTA DE PERSONAL</h3>
                     <ul id="listaUsuarios" class="admin-list"></ul>
                 </div>
                 <div id="tab-proyectos" class="tab-section">
@@ -248,7 +250,7 @@ let DEBTS = [];
 let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
 
-// --- DB-BASED DEBTS LOGIC V36 (EDIT + DELETE + DATE) ---
+// --- DEBTS LOGIC V38 (SAFE CLICK HANDLERS) ---
 function openDebts() { 
     $('debts-overlay').style.display='flex'; 
     $('debtIdEdit').value = ''; 
@@ -266,15 +268,15 @@ async function saveDebt() {
 
     if(!name || !amount) return alert("Completa los datos");
     
-    // FORMATO DEUDA: DEUDA#MONTO#NOMBRE#FECHA
     const dbName = `DEUDA#${amount}#${name}#${date}`;
     const url = id ? `/api/activos/${id}` : '/api/activos';
     const method = id ? 'PUT' : 'POST';
 
-    await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nombre: dbName, cuentas: [] }) });
-    
-    $('debtIdEdit').value=''; $('debtName').value=''; $('debtAmount').value=''; $('debtDate').value='';
-    loadData();
+    try {
+        await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nombre: dbName, cuentas: [] }) });
+        $('debtIdEdit').value=''; $('debtName').value=''; $('debtAmount').value=''; $('debtDate').value='';
+        loadData();
+    } catch(e) { alert("Error guardando deuda"); }
 }
 
 async function deleteDebt(id) {
@@ -283,16 +285,17 @@ async function deleteDebt(id) {
     loadData();
 }
 
-function editDebt(id, name, amount, date) {
-    $('debtIdEdit').value = id;
-    $('debtName').value = name;
-    $('debtAmount').value = amount;
-    $('debtDate').value = date;
+function editDebt(index) {
+    const d = DEBTS[index];
+    const parts = d.nombre.split('#');
+    $('debtIdEdit').value = d._id;
+    $('debtName').value = parts[2];
+    $('debtAmount').value = parts[1];
+    $('debtDate').value = parts[3] || '';
 }
 
 function renderDebts() {
-    $('debtsList').innerHTML = DEBTS.map(d => {
-        // Parse: DEUDA#Total#Name#Date
+    $('debtsList').innerHTML = DEBTS.map((d, index) => {
         const parts = d.nombre.split('#');
         const total = parseFloat(parts[1]);
         const realName = parts[2];
@@ -313,22 +316,26 @@ function renderDebts() {
                 <span>Total: ${fmtMoney(total)}</span>
             </div>
             <div class="progress-track"><div class="progress-fill" style="width:${progress}%; background:${isPaid?'var(--green)':'var(--blue)'}"></div></div>
-            ${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d._id}', '${realName}')">ABONAR A CAPITAL</button>` : ''}
+            ${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d._id}', ${index})">ABONAR A CAPITAL</button>` : ''}
             
             <div style="position:absolute; top:10px; right:10px; display:flex; gap:5px;">
-                <button class="btn-icon edit" onclick="editDebt('${d._id}', '${realName}', ${total}, '${dateStr}')">✏️</button>
+                <button class="btn-icon edit" onclick="editDebt(${index})">✏️</button>
                 <button class="btn-icon del" onclick="deleteDebt('${d._id}')">🗑️</button>
             </div>
         </div>`;
     }).join('');
 }
 
-function payDebt(id, name) {
+function payDebt(id, index) {
+    const d = DEBTS[index];
+    const parts = d.nombre.split('#');
+    const realName = parts[2];
+    
     $('debts-overlay').style.display='none';
     openModal('gasto');
-    $('desc').value = `Abono a ${name}`;
+    $('desc').value = `Abono a ${realName}`;
     const opt = document.createElement('option');
-    opt.value = id; opt.text = `[DEUDA] ${name}`;
+    opt.value = id; opt.text = `[DEUDA] ${realName}`;
     $('selActivo').add(opt);
     $('selActivo').value = id;
 }
@@ -350,7 +357,6 @@ async function loadData(){
         DATA.categorias = rawData.categorias;
         DATA.patrimonio = rawData.patrimonio;
         
-        // Filter Logic V35+
         DATA.activos = rawData.activos.filter(a => !a.nombre.startsWith('DEUDA#'));
         DEBTS = rawData.activos.filter(a => a.nombre.startsWith('DEUDA#'));
 
@@ -390,7 +396,7 @@ function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('perso
 function switchTab(t){ document.querySelectorAll('.tab-section').forEach(e=>e.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active')); const panel = document.getElementById(`tab-${t}`); const btn = document.getElementById(`btn-tab-${t}`); if(panel) panel.classList.add('active'); if(btn) btn.classList.add('active'); }
 async function cargarUsuariosUI(){ const r=await fetch('/api/usuarios'); ALL_USERS=await r.json(); 
 $('checklistProyectos').innerHTML=DATA.activos.map(a=>`<div class="check-item"><input type="checkbox" class="chk-proy" value="${a._id}" id="chk_u_${a._id}"> ${a.nombre}</div>`).join(''); 
-$('listaUsuarios').innerHTML=ALL_USERS.map(u=>`<div class="item-row"><b>${u.user}</b> <div class="flex-row"><button class="btn-icon edit" onclick="editarUsuario('${u._id}')">✏️</button><button class="btn-icon del" onclick="borrarUsuario('${u._id}')">🗑️</button></div></div>`).join(''); }
+$('listaUsuarios').innerHTML=ALL_USERS.map((u, i)=>`<div class="item-row"><b>${u.user}</b> <div class="flex-row"><button class="btn-icon edit" onclick="editarUsuario('${u._id}')">✏️</button><button class="btn-icon del" onclick="borrarUsuario('${u._id}')">🗑️</button></div></div>`).join(''); }
 async function borrarUsuario(id){ if(confirm("¿Eliminar usuario?")) await fetch(`/api/usuarios/${id}`,{method:'DELETE'}); cargarUsuariosUI(); }
 function editarUsuario(id){ const u=ALL_USERS.find(x=>x._id===id); $('userIdEdit').value=id; $('userTitle').innerText="EDITAR: "+u.user; $('new_user').value=u.user; $('new_fullname').value=u.nombre_completo; $('new_pass').value=''; document.querySelectorAll('.chk-proy').forEach(c=>c.checked=false); if(u.proyectos_permitidos) u.proyectos_permitidos.forEach(p=>{ const k=$(`chk_u_${p._id}`); if(k)k.checked=true; }); }
 async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user').value, p=$('new_pass').value, f=$('new_fullname').value, ps=Array.from(document.querySelectorAll('.chk-proy:checked')).map(c=>c.value); if(!u)return; const url=id?`/api/usuarios/${id}`:'/api/usuarios'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p,nombre_completo:f,proyectos:ps})}); $('userIdEdit').value=''; $('userTitle').innerText="NUEVO COLABORADOR"; $('new_user').value=''; $('new_fullname').value=''; $('new_pass').value=''; cargarUsuariosUI(); }
@@ -440,7 +446,7 @@ async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿
 function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
 function populateFilters(){ if(DATA.activos) $('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); }
 
-// IMPRESION DEUDAS DETALLADA
+// IMPRESION DEUDAS
 function imprimirReporteDeudas() {
     let html = `<div class="print-header"><div class="print-logo">ESTADO DE PASIVOS</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div>`;
     DEBTS.forEach(d => {
