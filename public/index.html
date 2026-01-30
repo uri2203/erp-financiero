@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | Elite UI</title>
+<title>ERP CTRFAM | V26 Deudas</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* --- DISEÑO ELITE DARK (INTACTO) --- */
+    /* --- DISEÑO ELITE DARK --- */
     :root { 
         --bg:#050505; --card:#111; --sidebar:#080808;
         --text:#e0e0e0; --muted:#666;
-        --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --gold:#eab308; --purple:#a855f7; --cyan:#06b6d4;
+        --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --gold:#eab308; --purple:#a855f7; --cyan:#06b6d4; --orange:#f97316;
         --border:#222;
     }
     body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; margin:0; padding:20px; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; }
@@ -40,42 +40,37 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 20px -5px rgba(0,0,0,0.5); }
     .card-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:1px solid var(--border); margin-bottom:15px; }
     
-    /* TYPOGRAPHY */
     h2 { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin:0; font-weight:700; }
     .big-number { font-size:28px; font-weight:800; color:#fff; letter-spacing:-0.5px; }
     
-    /* INPUTS */
     input, select { width:100%; padding:12px; background:#000; border:1px solid #333; color:#fff; border-radius:8px; margin-bottom:10px; box-sizing:border-box; outline:none; transition:0.3s; font-family:'Inter',sans-serif; font-size:13px; }
     input:focus, select:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(59,130,246,0.2); }
-    
-    /* Corrección para icono de calendario en modo oscuro */
     input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
-    /* BOTONES PRINCIPALES */
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:8px; color:white; text-transform:uppercase; letter-spacing:0.5px; justify-content:center; transition:0.2s; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
-    
-    /* BOTONES DE ACCIÓN (PEQUEÑOS) */
     .btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff; }
     .btn-icon:hover { transform: scale(1.05); }
     .btn-icon.edit:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--blue); color: var(--blue); }
     .btn-icon.del:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--red); color: var(--red); }
 
-    /* COLORES */
     .bg-green { background:linear-gradient(135deg, #16a34a, #22c55e); color:#000; } 
     .bg-red { background:rgba(239,68,68,0.1); border:1px solid var(--red); color:var(--red); }
     .bg-blue { background:linear-gradient(135deg, #2563eb, #3b82f6); }
     .bg-gold { background:var(--gold); color:#000; }
     .bg-purple { background:var(--purple); color:#fff; }
     .bg-cyan { background:var(--cyan); color:#000; }
+    .bg-orange { background:var(--orange); color:#000; }
 
-    /* LISTAS */
     .item-list { overflow-y:auto; flex:1; padding-right:5px; }
     .item-row { display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #1a1a1a; transition:0.2s; border-radius:6px; margin-bottom:2px; }
     .item-row:hover { background:rgba(255,255,255,0.03); }
     .flex-row { display:flex; gap:10px; }
     
-    /* IMPRESIÓN PRO */
+    /* PROGRESS BAR PARA DEUDAS */
+    .progress-track { width: 100%; background: #222; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--blue); transition: width 0.5s ease; }
+    
     #print-area { display:none; }
     @media print {
         body * { visibility: hidden; }
@@ -190,21 +185,35 @@
     </div>
 </div>
 
+<div id="debts-overlay" class="overlay">
+    <div class="box-sm">
+        <h2 style="margin-bottom:20px;color:var(--orange);">📉 Pasivos & Deudas</h2>
+        
+        <div style="background:#151515; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
+            <label style="font-size:11px;color:var(--muted);">Nueva Deuda / Crédito</label>
+            <div class="flex-row">
+                <input id="debtName" placeholder="Concepto (Ej. Laptop)">
+                <input id="debtAmount" type="number" placeholder="Total a Pagar">
+            </div>
+            <button class="btn bg-green" style="width:100%; justify-content:center;" onclick="addDebt()">+ CREAR PASIVO</button>
+        </div>
+
+        <div id="debtsList" class="item-list" style="max-height:300px;">
+            </div>
+
+        <button class="btn bg-red" style="width:100%; margin-top:20px;" onclick="document.getElementById('debts-overlay').style.display='none'">CERRAR</button>
+    </div>
+</div>
+
 <div id="cats-overlay" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Mis Categorías</h2><div style="display:flex;gap:10px;"><input id="u-catName" placeholder="Nombre"><select id="u-catType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div><label style="font-size:11px;color:var(--muted);">Asignar:</label><select id="u-catProy"></select><button class="btn bg-green" style="width:100%;margin:10px 0;" onclick="crearCatUser()">AGREGAR</button><div id="u-listaCats" class="item-list" style="max-height:300px;"></div><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('cats-overlay').style.display='none'">CERRAR</button></div></div>
 <div id="traspaso-overlay" class="overlay"><div class="box-sm"><h2>Traspaso</h2><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="trasMonto"><label style="font-size:11px;color:var(--muted);">Origen</label><select id="trasOrigen"></select><label style="font-size:11px;color:var(--muted);">Destino</label><select id="trasDestino"></select><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="trasProyecto"></select><label style="font-size:11px;color:var(--muted);">Nota</label><input type="text" id="trasDesc"><div style="display:flex;gap:10px;margin-top:20px;"><button class="btn bg-cyan" style="flex:1;" onclick="ejecutarTraspaso()">CONFIRMAR</button><button class="btn bg-red" style="flex:1;" onclick="document.getElementById('traspaso-overlay').style.display='none'">CANCELAR</button></div></div></div>
 <div id="arqueo-overlay" class="overlay"><div class="box-sm"><h2>Corte de Caja</h2><div id="listaArqueo" class="item-list" style="max-height:300px;"></div><h2 style="text-align:center;color:var(--green);margin:20px 0;" id="totalArqueo">$0</h2><button class="btn bg-purple" onclick="imprimirArqueo()" style="width:100%;">🖨️ PDF</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('arqueo-overlay').style.display='none'">CERRAR</button></div></div>
-
-<div id="modal" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Registro</h2><input type="hidden" id="movIdEdit">
-<div class="flex-row">
-    <div style="flex:1"><label style="font-size:11px;color:var(--muted);">Fecha</label><input type="date" id="fechaMov"></div>
-    <div style="flex:2"><label style="font-size:11px;color:var(--muted);">Concepto <span style="color:var(--red)">*</span></label><input type="text" id="desc"></div>
-</div>
-<div style="display:flex;gap:10px;"><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><div id="createFields"><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:var(--muted);">Cuenta</label><select id="selCuenta"></select></div><label style="font-size:11px;color:var(--muted);">Categoría</label><select id="selCat"></select><div id="divReembolso" style="display:none;margin-bottom:15px;background:#222;padding:10px;border-radius:5px;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--gold);font-size:12px;">⚠️ Pendiente Reembolso</label></div><button class="btn bg-green" style="width:100%;" onclick="guardarMovimiento()">CONFIRMAR</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('modal').style.display='none'">CANCELAR</button></div></div>
+<div id="modal" class="overlay"><div class="box-sm"><h2 style="margin-bottom:20px;">Registro</h2><input type="hidden" id="movIdEdit"><div class="flex-row"><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Fecha</label><input type="date" id="fechaMov"></div><div style="flex:2"><label style="font-size:11px;color:var(--muted);">Concepto <span style="color:var(--red)">*</span></label><input type="text" id="desc"></div></div><div style="display:flex;gap:10px;"><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:var(--muted);">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><div id="createFields"><label style="font-size:11px;color:var(--muted);">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:var(--muted);">Cuenta</label><select id="selCuenta"></select></div><label style="font-size:11px;color:var(--muted);">Categoría</label><select id="selCat"></select><div id="divReembolso" style="display:none;margin-bottom:15px;background:#222;padding:10px;border-radius:5px;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--gold);font-size:12px;">⚠️ Pendiente Reembolso</label></div><button class="btn bg-green" style="width:100%;" onclick="guardarMovimiento()">CONFIRMAR</button><button class="btn bg-red" style="width:100%;margin-top:10px;" onclick="document.getElementById('modal').style.display='none'">CANCELAR</button></div></div>
 
 <div class="top-bar">
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
     <div style="display:flex;gap:10px;">
-        <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
+        <button class="btn bg-orange" onclick="openDebts()">📉 DEUDAS</button> <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
         <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
         <button class="btn bg-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
@@ -225,6 +234,72 @@ const $ = id => document.getElementById(id);
 let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[], categorias:[] };
 let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
+
+// --- DEBTS LOGIC (NUEVO GESTOR DE PASIVOS) ---
+let DEBTS = JSON.parse(localStorage.getItem('erp_debts')) || [];
+
+function openDebts() {
+    $('debts-overlay').style.display='flex';
+    renderDebts();
+}
+
+function addDebt() {
+    const name = $('debtName').value;
+    const amount = parseFloat($('debtAmount').value);
+    if(!name || !amount) return alert("Completa los datos");
+    
+    DEBTS.push({ id: Date.now(), name: name, total: amount, start: new Date().toISOString() });
+    localStorage.setItem('erp_debts', JSON.stringify(DEBTS));
+    $('debtName').value=''; $('debtAmount').value='';
+    renderDebts();
+}
+
+function renderDebts() {
+    $('debtsList').innerHTML = DEBTS.map(d => {
+        // Calcular abonado sumando gastos con categoria "Deuda: [Nombre]"
+        const abonado = DATA.movimientos
+            .filter(m => m.categoria === `Deuda: ${d.name}` && m.tipo === 'gasto')
+            .reduce((sum, m) => sum + Math.abs(m.monto), 0);
+        
+        const restante = d.total - abonado;
+        const progress = Math.min((abonado / d.total) * 100, 100);
+        const isPaid = restante <= 0;
+
+        return `
+        <div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="font-weight:bold; color:#fff;">${d.name}</span>
+                <span style="font-size:12px; color:${isPaid?'var(--green)':'var(--orange)'}">${isPaid ? 'PAGADO' : 'PENDIENTE'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
+                <span>Abonado: ${fmtMoney(abonado)}</span>
+                <span>Total: ${fmtMoney(d.total)}</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${progress}%; background:${isPaid?'var(--green)':'var(--blue)'}"></div></div>
+            ${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d.name}')">ABONAR A CAPITAL</button>` : ''}
+            <button class="btn-icon del" style="position:absolute; margin-top:-70px; right:35px;" onclick="deleteDebt(${d.id})">🗑️</button>
+        </div>`;
+    }).join('');
+}
+
+function payDebt(name) {
+    $('debts-overlay').style.display='none';
+    openModal('gasto');
+    $('desc').value = `Abono a ${name}`;
+    // Forzar categoria manual aunque no exista en BD (truco visual)
+    const opt = document.createElement('option');
+    opt.value = `Deuda: ${name}`;
+    opt.text = `Deuda: ${name}`;
+    $('selCat').add(opt);
+    $('selCat').value = `Deuda: ${name}`;
+}
+
+function deleteDebt(id) {
+    if(!confirm("¿Eliminar registro de deuda? (No borra los pagos realizados)")) return;
+    DEBTS = DEBTS.filter(d => d.id !== id);
+    localStorage.setItem('erp_debts', JSON.stringify(DEBTS));
+    renderDebts();
+}
 
 // --- INIT ---
 async function doLogin() { 
@@ -323,51 +398,3 @@ async function guardarActivoFull() { const id=$('proyIdEdit').value, n=$('proyNo
 function renderCatsAdmin(){ $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); let l=DATA.categorias; const f=$('catFilterProy').value; if($('catFilterProy').options.length===1){DATA.activos.forEach(a=>{$('catFilterProy').appendChild(new Option(a.nombre,a._id))});$('catFilterProy').appendChild(new Option('General','general'));} if(f!=='all'){if(f==='general')l=l.filter(c=>!c.proyecto_id);else l=l.filter(c=>c.proyecto_id&&c.proyecto_id._id===f);} $('listaCatsAdmin').innerHTML=l.map(c=>`<li class="item-row"><span>${c.nombre} <small>(${c.tipo}) [${c.proyecto_id?c.proyecto_id.nombre:'General'}]</small></span><button class="btn-icon del" onclick="borrarCat('${c._id}')">🗑️</button></li>`).join(''); }
 async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCatsAdmin); }
 async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCatsAdmin); }
-function openModal(t){ 
-    $('movIdEdit').value = ''; $('createFields').style.display = 'block'; currentTipo=t; 
-    $('modal').style.display='flex'; $('tipoTxt').value=t.toUpperCase(); $('desc').value=''; $('monto').value=''; 
-    $('fechaMov').value = new Date().toISOString().split('T')[0]; // FECHA DE HOY DEFAULT
-    if(t==='gasto')$('divReembolso').style.display='block';else $('divReembolso').style.display='none'; 
-    filtrarCategorias(); 
-}
-function filtrarCategorias() { const projId = $('selActivo').value; const cats = DATA.categorias.filter(c => { if(projId === "") return !c.proyecto_id && c.tipo === currentTipo; return c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId); }); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; }
-function populateSelects(){ $('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join(''); $('selActivo').innerHTML = (IS_ADMIN?`<option value="">-- Personal --</option>`:'') + DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('') + '<option value="">--- Otros / Varios ---</option>'; }
-async function guardarMovimiento(){ 
-    const d=$('desc').value; if(!d) return alert("Concepto obligatorio"); 
-    const id = $('movIdEdit').value; const p = $('selActivo').value; 
-    const body = { 
-        descripcion:d, monto:$('monto').value, tipo:currentTipo, categoria:$('selCat').value, 
-        usuario_actual:CURRENT_USER, fecha: $('fechaMov').value // FECHA NUEVA 
-    }; 
-    if(id) { await fetch(`/api/movimiento/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); } 
-    else { body.cuenta_id = $('selCuenta').value; body.activo_id = p || null; body.estado = ($('chkReembolso').checked && currentTipo==='gasto') ? 'pendiente_reembolso' : 'finalizado'; await fetch('/api/movimiento', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); } 
-    document.getElementById('modal').style.display='none'; loadData(); 
-}
-async function borrarMov(id) { if(!confirm("¿Seguro?")) return; await fetch(`/api/movimiento/${id}`, {method:'DELETE'}); loadData(); }
-function editarMov(m) { 
-    if(m.tipo.includes('traspaso')) return alert("Borra y crea de nuevo los traspasos."); 
-    $('movIdEdit').value = m._id; $('desc').value = m.descripcion; $('monto').value = Math.abs(m.monto); $('tipoTxt').value = m.tipo.toUpperCase(); currentTipo = m.tipo; 
-    $('fechaMov').value = m.fecha.split('T')[0]; // FECHA AL EDITAR
-    $('createFields').style.display = 'none'; const projId = m.activo_id ? m.activo_id._id : ''; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; $('selCat').value = m.categoria; $('modal').style.display='flex'; 
-}
-function closeModal(){$('modal').style.display='none';}
-async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
-function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"> ${c.nombre}</label> <strong>${fmtMoney(c.saldo)}</strong></div>`).join('');calcArq();}
-function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
-function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
-async function ejecutarTraspaso(){const o=$('trasOrigen').value,d=$('trasDestino').value,m=$('trasMonto').value,desc=$('trasDesc').value,p=$('trasProyecto').value;if(o===d||!m)return;await fetch('/api/traspaso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origen_id:o,destino_id:d,monto:m,descripcion:desc,usuario_actual:CURRENT_USER,activo_id:p})});$('traspaso-overlay').style.display='none';loadData();}
-function abrirCatsUser() { $('cats-overlay').style.display='flex'; $('u-catProy').innerHTML = '<option value="">--- General / Otros ---</option>' + DATA.activos.map(a => `<option value="${a._id}">${a.nombre}</option>`).join(''); renderCatsUser(); }
-function renderCatsUser() { const list = DATA.categorias.filter(c => (!c.proyecto_id || DATA.activos.some(a => a._id === c.proyecto_id._id))); $('u-listaCats').innerHTML=list.map(c=>`<div class="item-row"><span>${c.nombre} <small style="color:var(--muted)">(${c.tipo})</small></span> <button class="btn-icon del" onclick="borrarCatUser('${c._id}')">🗑️</button></div>`).join(''); }
-async function crearCatUser() { const n=$('u-catName').value, t=$('u-catType').value, p=$('u-catProy').value; if(!n) return alert("Nombre requerido"); await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('u-catName').value=''; loadData().then(renderCatsUser); }
-async function borrarCatUser(id) { if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCatsUser); }
-async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function editarCuenta(id,o){const n=prompt("Nombre:",o);if(n)await fetch(`/api/cuentas/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
-async function borrarCuenta(id){if(confirm("X"))await fetch(`/api/cuentas/${id}`,{method:'DELETE'});loadData();}
-async function borrarActivo(id){if(confirm("X"))await fetch(`/api/activos/${id}`,{method:'DELETE'});loadData().then(cargarProyectosAdmin);}
-async function descargarBackup() { const r=await fetch(`/api/backup?user=${CURRENT_USER}`); const d=await r.json(); const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`Backup.json`; a.click(); }
-async function restaurarBackup(input) { if(!confirm("⚠️ SE BORRARÁ TODO. ¿SEGURO?")) return; const f=input.files[0]; const reader=new FileReader(); reader.onload=async(e)=>{ try{ const data=JSON.parse(e.target.result); await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data, user:CURRENT_USER})}); alert("Restauración OK. Recargando..."); location.reload(); }catch(err){alert("Error");} }; reader.readAsText(f); }
-function updateChart(){const ctx=$('chartActivos').getContext('2d');if(chartRef)chartRef.destroy();const ac=DATA.activos.filter(a=>a.balance_total>0);chartRef=new Chart(ctx,{type:'doughnut',data:{labels:ac.map(a=>a.nombre),datasets:[{data:ac.map(a=>a.balance_total),borderWidth:0,backgroundColor:['#22c55e','#3b82f6','#ef4444','#eab308']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});}
-function populateFilters(){ if(DATA.activos) $('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); }
-</script>
-</body>
-</html>
