@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V29 Final</title>
+<title>ERP CTRFAM | V30 CashFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -165,7 +165,7 @@
 <div id="reporte-overlay" class="overlay">
     <div class="box-lg">
         <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-            <h2>📊 Reporte Financiero</h2>
+            <h2>📊 Reporte de Flujo de Efectivo</h2>
             <div style="display:flex;gap:10px;">
                 <button class="btn bg-gold" onclick="imprimirReporte()">🖨️ PDF</button>
                 <button class="btn bg-red" onclick="document.getElementById('reporte-overlay').style.display='none'">X</button>
@@ -180,8 +180,8 @@
             <label style="font-size:11px;color:var(--muted);margin-bottom:5px;display:block;">Cuentas:</label><div id="report-accounts-list" style="display:flex;gap:15px;flex-wrap:wrap;"></div>
         </div>
         <div style="display:flex;gap:20px;margin-bottom:20px;text-align:center;">
-            <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">INGRESOS</small><div id="repIng" class="big-number" style="color:var(--green)"></div></div>
-            <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">GASTOS</small><div id="repGas" class="big-number" style="color:var(--red)"></div></div>
+            <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">ENTRADAS</small><div id="repIng" class="big-number" style="color:var(--green)"></div></div>
+            <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">SALIDAS</small><div id="repGas" class="big-number" style="color:var(--red)"></div></div>
             <div style="flex:1;background:#1a1a1a;padding:15px;border-radius:12px;"><small style="color:#aaa;">NETO</small><div id="repNeto" class="big-number"></div></div>
         </div>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;flex:1;overflow:hidden;">
@@ -218,7 +218,8 @@
 <div class="top-bar">
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
     <div style="display:flex;gap:10px;">
-        <button class="btn bg-orange" id="btnDebts" style="display:none;" onclick="openDebts()">📉 DEUDAS</button> <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
+        <button class="btn bg-orange" id="btnDebts" style="display:none;" onclick="openDebts()">📉 DEUDAS</button>
+        <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
         <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
         <button class="btn bg-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
@@ -261,7 +262,7 @@ function renderDebts() {
 function payDebt(name) { $('debts-overlay').style.display='none'; openModal('gasto'); $('desc').value = `Abono a ${name}`; const opt = document.createElement('option'); opt.value = `Deuda: ${name}`; opt.text = `Deuda: ${name}`; $('selCat').add(opt); $('selCat').value = `Deuda: ${name}`; }
 function deleteDebt(id) { if(!confirm("¿Eliminar registro?")) return; DEBTS = DEBTS.filter(d => d.id !== id); localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); renderDebts(); }
 
-// --- REPORTES (FUNCIONES ARREGLADAS) ---
+// --- REPORTES REPARADOS (FLUJO DE EFECTIVO) ---
 function abrirReportes(){
     try {
         $('reporte-overlay').style.display='flex';
@@ -276,7 +277,23 @@ async function actualizarReporte(){
     const cuentas_ids = selected.length > 0 ? selected : 'todas';
     try {
         const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER, cuentas_ids})});
-        const rep=await r.json(); REPORT_CACHE=rep;
+        const rep=await r.json(); 
+        
+        // --- PARCHE DE FLUJO DE EFECTIVO (V30) ---
+        // Recalcular totales sumando TODO lo que hay en la lista (incluyendo traspasos)
+        let tIng = 0, tGas = 0;
+        if(rep.detalles) {
+            rep.detalles.forEach(m => {
+                if(m.monto > 0) tIng += m.monto;
+                else tGas += Math.abs(m.monto);
+            });
+        }
+        rep.ingresos = tIng;
+        rep.gastos = tGas;
+        rep.neto = tIng - tGas;
+        // ----------------------------------------
+
+        REPORT_CACHE=rep;
         $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
         const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); 
         repChart1=new Chart(ctx1,{type:'bar',data:{labels:['Ing','Gas','Neto'],datasets:[{data:[rep.ingresos,rep.gastos,rep.neto],backgroundColor:['#22c55e','#ef4444','#3b82f6']}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{grid:{color:'#333'}}}}});
@@ -296,7 +313,7 @@ function imprimirReporte(){
         const signo = isGasto ? '-' : '';
         return `<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id?m.activo_id.nombre:'General'}</td><td>${m.cuenta_id?m.cuenta_id.nombre:'-'}</td><td class="text-right ${colorClass}">${signo}${fmtMoney(Math.abs(m.monto))}</td></tr>`;
     }).join('');
-    const h=`<div class="print-header"><div class="print-logo">REPORTE CTRFAM</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div><div class="print-summary"><div class="print-val-label">INGRESOS<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.ingresos)}</span></div><div class="print-val-label">GASTOS<br><span class="print-val-num text-red-print">${fmtMoney(REPORT_CACHE.gastos)}</span></div><div class="print-val-label">NETO<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.neto)}</span></div></div><table class="print-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Proyecto</th><th>Cuenta</th><th class="text-right">Monto</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const h=`<div class="print-header"><div class="print-logo">REPORTE CTRFAM</div><p>${CURRENT_USER} | ${new Date().toLocaleDateString()}</p></div><div class="print-summary"><div class="print-val-label">ENTRADAS<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.ingresos)}</span></div><div class="print-val-label">SALIDAS<br><span class="print-val-num text-red-print">${fmtMoney(REPORT_CACHE.gastos)}</span></div><div class="print-val-label">NETO<br><span class="print-val-num">${fmtMoney(REPORT_CACHE.neto)}</span></div></div><table class="print-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Proyecto</th><th>Cuenta</th><th class="text-right">Monto</th></tr></thead><tbody>${rows}</tbody></table>`;
     imprimirHTML(h);
 }
 function imprimirReporteDeudas() {
@@ -319,41 +336,6 @@ function imprimirArqueo(){
     const h=`<div class="print-header"><div class="print-logo">CORTE DE CAJA</div><p>${CURRENT_USER} | ${new Date().toLocaleString()}</p></div><table class="print-table"><thead><tr><th>CUENTA / CAJA</th><th class="text-right">SALDO</th></tr></thead><tbody>${rows}</tbody></table><h2 style="text-align:right; margin-top:20px;">TOTAL: ${fmtMoney(total)}</h2><br><br><br><div style="border-top:1px solid #000; width:200px; margin:50px auto; text-align:center;">Firma Responsable</div>`;
     imprimirHTML(h);
 }
-
-// --- INIT ---
-async function doLogin() { 
-    const u=$('user').value, p=$('pass').value; 
-    try { const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})}); const d=await r.json(); if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}else{$('loginError').style.display='block';} }catch(e){alert("Error de conexión");} 
-}
-function logout(){location.reload();}
-async function loadData(){try{const r=await fetch(`/api/data?user=${CURRENT_USER}`); DATA=await r.json(); renderAll(); populateFilters();}catch(e){console.error(e);}}
-
-function renderAll(){
-    $('btnReportes').style.display='flex'; $('totalPatrimonio').innerText=fmtMoney(DATA.patrimonio);
-    if(IS_ADMIN){ $('btnAdmin').style.display='flex'; $('btnAddCta').style.display='block'; $('btnDebts').style.display='flex'; }
-    else{ $('btnAdmin').style.display='none'; $('btnAddCta').style.display='none'; $('btnDebts').style.display='none'; }
-    $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
-    $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
-    $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div style="display:flex;gap:5px;"><button class="btn-icon edit" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn-icon del" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
-    $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="item-row"><div>${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
-    renderMovs(DATA.movimientos); updateChart(); populateSelects();
-}
-
-function renderMovs(movs) {
-    $('listMovs').innerHTML=movs.map(m=> { 
-        let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
-        let actions = ``;
-        if(IS_ADMIN || m.creado_por === CURRENT_USER) { actions = `<div style="display:flex;gap:5px;margin-top:5px;"><button class="btn-icon edit" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn-icon del" onclick="borrarMov('${m._id}')">🗑️</button></div>`; }
-        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; padding:10px; border-bottom:1px solid #222;">
-            <div style="display:flex; justify-content:space-between;">
-                <div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span style="font-size:11px;color:#666;">${new Date(m.fecha).toLocaleDateString()} | ${m.categoria||'-'} | ${m.creado_por}</span></div>
-                <span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span>
-            </div>
-            ${actions}
-        </li>` 
-    }).join('');
-}
-function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
 
 // ADMIN
 function abrirAdmin(){ $('admin-overlay').style.display='flex'; switchTab('personal'); cargarUsuariosUI(); cargarProyectosAdmin(); renderCatsAdmin(); }
