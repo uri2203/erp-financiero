@@ -107,6 +107,7 @@
             <button class="btn btn-red" style="width:100%;" onclick="$('admin-overlay').style.display='none'">CERRAR PANEL</button>
         </aside>
         <main class="admin-content">
+            
             <div id="tab-personal" class="admin-section active">
                 <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Gestión de Usuarios</h2>
                 <div class="admin-form-group">
@@ -119,6 +120,7 @@
                 </div>
                 <h3 style="font-size:12px; color:#aaa;">LISTA DE USUARIOS</h3><ul id="listaUsuarios" class="admin-list"></ul>
             </div>
+
             <div id="tab-proyectos" class="admin-section">
                 <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Gestión de Proyectos</h2>
                 <div class="admin-form-group">
@@ -129,14 +131,24 @@
                 </div>
                 <ul id="listaProyectosAdmin" class="admin-list"></ul>
             </div>
+
             <div id="tab-categorias" class="admin-section">
-                <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Catálogo</h2>
+                <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Catálogo de Conceptos</h2>
                 <div class="admin-form-group">
                     <div class="form-row"><input type="text" id="newCatName" placeholder="Nueva Categoría"><select id="newCatType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select></div>
-                    <select id="newCatProy"></select><button class="btn btn-green" style="width:100%;" onclick="crearCat()">AGREGAR</button>
+                    <label style="font-size:11px;color:#aaa;">Asignar a Proyecto (Opcional)</label>
+                    <select id="newCatProy"></select><button class="btn btn-green" style="width:100%; margin-top:10px;" onclick="crearCat()">AGREGAR</button>
                 </div>
-                <ul id="listaCats" class="admin-list"></ul>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="font-size:12px; color:#aaa; margin:0;">LISTADO ACTUAL</h3>
+                    <select id="catFilterProy" style="width:150px; margin:0;" onchange="renderCats()">
+                        <option value="all">Ver Todos</option>
+                        </select>
+                </div>
+                <ul id="listaCats" class="admin-list" style="max-height:400px; overflow-y:auto;"></ul>
             </div>
+
             <div id="tab-sistema" class="admin-section">
                 <h2 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">Mantenimiento</h2>
                 <div class="admin-form-group" style="text-align:center;">
@@ -182,9 +194,7 @@
 <div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2>
 <input type="hidden" id="movIdEdit">
 <label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div>
-<div id="createFields"> <label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select>
-    <label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select>
-</div>
+<div id="createFields"><label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select></div>
 <label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div>
 <button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
 
@@ -218,20 +228,11 @@ function imprimirHTML(htmlContent) {
 function imprimirReporte() {
     if(!REPORT_CACHE) return alert("Carga datos");
     const rows = REPORT_CACHE.detalles.map(m => {
-        // LOGICA DE ROJO
         const isGasto = m.tipo === 'gasto' || m.tipo === 'traspaso_salida';
         const color = isGasto ? 'color:#dc2626;' : '';
         const signo = isGasto ? '-' : '';
-        return `
-        <tr>
-            <td>${new Date(m.fecha).toLocaleDateString()}</td>
-            <td>${m.descripcion} (${m.categoria||'-'})</td>
-            <td>${m.activo_id ? m.activo_id.nombre : 'General'}</td>
-            <td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td>
-            <td style="text-align:right; font-weight:bold; ${color}">${signo}${fmtMoney(Math.abs(m.monto))}</td>
-        </tr>`;
+        return `<tr><td>${new Date(m.fecha).toLocaleDateString()}</td><td>${m.descripcion} (${m.categoria||'-'})</td><td>${m.activo_id ? m.activo_id.nombre : 'General'}</td><td>${m.cuenta_id ? m.cuenta_id.nombre : '-'}</td><td style="text-align:right; font-weight:bold; ${color}">${signo}${fmtMoney(Math.abs(m.monto))}</td></tr>`;
     }).join('');
-
     const html = `<div style="font-family:sans-serif; padding:20px;"><h1 style="text-align:center;">REPORTE CTRFAM</h1><p style="text-align:center;">Usuario: ${CURRENT_USER} | Fecha: ${new Date().toLocaleDateString()}</p><hr><div style="display:flex; justify-content:space-between; margin:20px 0; font-size:18px; font-weight:bold;"><div>Ingresos: ${fmtMoney(REPORT_CACHE.ingresos)}</div><div style="color:#dc2626;">Gastos: ${fmtMoney(REPORT_CACHE.gastos)}</div><div>Neto: ${fmtMoney(REPORT_CACHE.neto)}</div></div><hr><table style="width:100%; border-collapse:collapse; margin-top:20px;"><tr style="background:#eee;"><th style="padding:8px; border:1px solid #ccc; text-align:left;">Fecha</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Descripción</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Proyecto</th><th style="padding:8px; border:1px solid #ccc; text-align:left;">Cuenta</th><th style="padding:8px; border:1px solid #ccc; text-align:right;">Monto</th></tr>${rows}</table></div>`;
     imprimirHTML(html);
 }
@@ -264,9 +265,7 @@ function renderMovs(movs) {
     $('listMovs').innerHTML=movs.map(m=> { 
         let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
         let actions = ``;
-        if(IS_ADMIN || m.creado_por === CURRENT_USER) {
-            actions = `<div style="display:flex; gap:5px; margin-top:5px;"><button class="btn-blue btn-small" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn-red btn-small" onclick="borrarMov('${m._id}')">🗑️</button></div>`;
-        }
+        if(IS_ADMIN || m.creado_por === CURRENT_USER) { actions = `<div style="display:flex; gap:5px; margin-top:5px;"><button class="btn-blue btn-small" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn-red btn-small" onclick="borrarMov('${m._id}')">🗑️</button></div>`; }
         return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; flex-direction:column; align-items:flex-start;"><div style="display:flex; justify-content:space-between; width:100%;"><div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span class="meta-info">${m.categoria||'-'} | 👤${m.creado_por}</span></div><span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span></div>${actions}</li>` 
     }).join('');
 }
@@ -281,24 +280,15 @@ async function guardarMovimiento(){ const id = $('movIdEdit').value; const body 
 // REPORTES Y FILTROS
 function abrirReportes(){
     $('reporte-overlay').style.display='flex';
-    // Llenar checkboxes de cuentas
-    $('report-accounts-list').innerHTML = DATA.cuentas.map(c => `
-        <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;">
-            <input type="checkbox" class="chk-report-account" value="${c._id}" onchange="actualizarReporte()">
-            ${c.nombre}
-        </label>
-    `).join('');
+    $('report-accounts-list').innerHTML = DATA.cuentas.map(c => `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;"><input type="checkbox" class="chk-report-account" value="${c._id}" onchange="actualizarReporte()">${c.nombre}</label>`).join('');
     actualizarReporte();
 }
 function cerrarReportes(){$('reporte-overlay').style.display='none';}
 function populateFilters(){$('filtroProyecto').innerHTML='<option value="todos">Todos</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
 async function actualizarReporte(){
     const anio=$('filtroAnio').value, mes=$('filtroMes').value, activo_id=$('filtroProyecto').value;
-    
-    // Obtener cuentas seleccionadas
     const selectedAccounts = Array.from(document.querySelectorAll('.chk-report-account:checked')).map(cb => cb.value);
     const cuentas_ids = selectedAccounts.length > 0 ? selectedAccounts : 'todas';
-
     const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER, cuentas_ids})});
     const rep=await r.json(); REPORT_CACHE=rep;
     $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
@@ -306,7 +296,7 @@ async function actualizarReporte(){
     const ctx2=$('chartReporteCat').getContext('2d'); if(repChart2)repChart2.destroy(); const cats=Object.keys(rep.por_categoria||{}); const vals=Object.values(rep.por_categoria||{}); repChart2=new Chart(ctx2,{type:'doughnut',data:{labels:cats,datasets:[{data:vals,backgroundColor:['#ef4444','#eab308','#3b82f6','#8b5cf6','#06b6d4','#22c55e'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:10}}}}});
 }
 
-// RESTO DE FUNCIONES
+// RESTO
 function closeModal(){$('modal').style.display='none';}
 function filtrarCategorias() { const projId = $('selActivo').value; const cats = DATA.categorias.filter(c => c.tipo === currentTipo && (!c.proyecto_id || c.proyecto_id._id === projId)); $('selCat').innerHTML = cats.length ? cats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('') : '<option value="General">General</option>'; }
 function populateSelects(){$('selCuenta').innerHTML=DATA.cuentas.map(c=>`<option value="${c._id}">${c.nombre} ($${c.saldo})</option>`).join('');$('selActivo').innerHTML=(IS_ADMIN?`<option value="">-- Personal --</option>`:'')+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
@@ -324,7 +314,35 @@ async function guardarUsuario(){ const id=$('userIdEdit').value, u=$('new_user')
 function cargarProyectosAdmin() { $('checklistCuentasProy').innerHTML=DATA.cuentas.map(c=>`<div style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="chk-cta-proy" value="${c._id}" id="chk_cta_${c._id}"><span style="font-size:11px;">${c.nombre}</span></div>`).join(''); $('listaProyectosAdmin').innerHTML=DATA.activos.map(a=>`<li><div><strong>${a.nombre}</strong><br><small style="color:#666;">${a.cuentas_asociadas?a.cuentas_asociadas.length:0} Cuentas Vinculadas</small></div><div><button class="btn btn-blue btn-small" onclick="editarProyecto('${a._id}')">✏️</button><button class="btn btn-red btn-small" onclick="borrarActivo('${a._id}')">🗑️</button></div></li>`).join(''); }
 function editarProyecto(id) { const p=DATA.activos.find(x=>x._id===id); $('proyIdEdit').value=id; $('proyTitle').innerText="EDITAR: "+p.nombre; $('proyNombre').value=p.nombre; document.querySelectorAll('.chk-cta-proy').forEach(c=>c.checked=false); if(p.cuentas_asociadas) p.cuentas_asociadas.forEach(c=>{ const k=$(`chk_cta_${c._id}`); if(k)k.checked=true; }); }
 async function guardarActivoFull() { const id=$('proyIdEdit').value, n=$('proyNombre').value, cs=Array.from(document.querySelectorAll('.chk-cta-proy:checked')).map(c=>c.value); if(!n)return; const url=id?`/api/activos/${id}`:'/api/activos'; const method=id?'PUT':'POST'; await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n,cuentas:cs})}); $('proyIdEdit').value=''; $('proyTitle').innerText="NUEVO PROYECTO"; $('proyNombre').value=''; loadData().then(cargarProyectosAdmin); }
-function renderCats(){ $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); $('listaCats').innerHTML=DATA.categorias.map(c=>`<li><span>${c.nombre} <small>(${c.tipo})</small></span> <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">X</button></li>`).join(''); }
+// CATEGORIAS CON LISTADO DE PROYECTO
+function renderCats(){ 
+    // Llenar filtro
+    const filter = $('catFilterProy').value;
+    if($('catFilterProy').options.length === 1) { // Solo si no se ha llenado
+        DATA.activos.forEach(a => { const opt = document.createElement('option'); opt.value = a._id; opt.innerText = a.nombre; $('catFilterProy').appendChild(opt); });
+        const gen = document.createElement('option'); gen.value = 'general'; gen.innerText = 'General (Sin Proyecto)'; $('catFilterProy').appendChild(gen);
+    }
+    
+    $('newCatProy').innerHTML='<option value="">-- General --</option>'+DATA.activos.map(a=>`<option value="${a._id}">${a.nombre}</option>`).join(''); 
+    
+    // Filtrar lista
+    let list = DATA.categorias;
+    if(filter !== 'all') {
+        if(filter === 'general') list = list.filter(c => !c.proyecto_id);
+        else list = list.filter(c => c.proyecto_id && c.proyecto_id._id === filter);
+    }
+
+    $('listaCats').innerHTML=list.map(c=>`
+        <li style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="font-weight:bold;">${c.nombre}</span>
+                <span style="font-size:10px; padding:2px 5px; border-radius:4px; background:${c.tipo==='ingreso'?'var(--green)':'var(--red)'}; color:#000; margin-left:5px;">${c.tipo.toUpperCase()}</span>
+                <div style="font-size:11px; color:#666;">Proyecto: ${c.proyecto_id ? c.proyecto_id.nombre : 'General'}</div>
+            </div>
+            <button class="btn btn-red btn-small" onclick="borrarCat('${c._id}')">🗑️</button>
+        </li>
+    `).join(''); 
+}
 async function crearCat(){ const n=$('newCatName').value, t=$('newCatType').value, p=$('newCatProy').value; if(n) await fetch('/api/categorias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n, tipo:t, proyecto_id:p || null})}); $('newCatName').value=''; loadData().then(renderCats); }
 async function borrarCat(id){ if(confirm("Borrar?")) await fetch(`/api/categorias/${id}`,{method:'DELETE'}); loadData().then(renderCats); }
 async function crearCuenta(){const n=prompt("Nombre:");if(n)await fetch('/api/cuentas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:n})});loadData();}
