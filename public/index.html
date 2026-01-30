@@ -71,7 +71,7 @@
     .checklist-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:150px; overflow-y:auto; padding:10px; background:#000; border-radius:6px; border:1px solid #333; margin-bottom:10px; }
     .checkbox-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:#222; border-radius:6px; }
 
-    /* ESTILO DE IMPRESIÓN */
+    /* ESTILO DE IMPRESIÓN (INVISIBLE EN PANTALLA) */
     @media print {
         body * { visibility: hidden; }
         #print-area, #print-area * { visibility: visible; }
@@ -179,7 +179,14 @@
     </div>
 </div></div>
 
-<div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2><label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div><label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select><label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div><label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select><button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
+<div id="modal"><div class="modal-box"><h2 id="modalTitle" style="color:var(--text);border:none;">Registro</h2>
+<input type="hidden" id="movIdEdit">
+<label style="font-size:11px;color:#aaa;">Concepto</label><input type="text" id="desc"><div class="form-row"><div style="flex:1"><label style="font-size:11px;color:#aaa;">Monto</label><input type="number" id="monto"></div><div style="flex:1"><label style="font-size:11px;color:#aaa;">Tipo</label><input type="text" id="tipoTxt" readonly></div></div>
+<div id="createFields"> <label style="font-size:11px;color:#aaa;">Proyecto</label><select id="selActivo" onchange="filtrarCategorias()"></select>
+    <label style="font-size:11px;color:#aaa;">Cuenta</label><select id="selCuenta"></select>
+</div>
+<label style="font-size:11px;color:#aaa;">Categoría</label><select id="selCat"></select><div id="divReembolso" class="checkbox-wrapper" style="display:none;"><input type="checkbox" id="chkReembolso"><label for="chkReembolso" style="color:var(--yellow);font-size:11px;">⚠️ Reembolso Pendiente</label></div>
+<button class="btn btn-green" onclick="guardarMovimiento()" style="margin-top:20px;">CONFIRMAR</button><button class="btn btn-red" onclick="closeModal()" style="margin-top:10px;">CANCELAR</button></div></div>
 
 <div class="top-bar">
     <div><div style="font-size:10px;color:var(--gray);text-transform:uppercase;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
