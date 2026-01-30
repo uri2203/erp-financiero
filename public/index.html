@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V30 CashFlow</title>
+<title>ERP CTRFAM | V31 Stable</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -49,8 +49,6 @@
 
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:8px; color:white; text-transform:uppercase; letter-spacing:0.5px; justify-content:center; transition:0.2s; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
-    
-    /* MICRO BOTONES */
     .btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff; }
     .btn-icon:hover { transform: scale(1.05); }
     .btn-icon.edit:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--blue); color: var(--blue); }
@@ -165,7 +163,7 @@
 <div id="reporte-overlay" class="overlay">
     <div class="box-lg">
         <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
-            <h2>📊 Reporte de Flujo de Efectivo</h2>
+            <h2>📊 Reporte Financiero</h2>
             <div style="display:flex;gap:10px;">
                 <button class="btn bg-gold" onclick="imprimirReporte()">🖨️ PDF</button>
                 <button class="btn bg-red" onclick="document.getElementById('reporte-overlay').style.display='none'">X</button>
@@ -262,7 +260,56 @@ function renderDebts() {
 function payDebt(name) { $('debts-overlay').style.display='none'; openModal('gasto'); $('desc').value = `Abono a ${name}`; const opt = document.createElement('option'); opt.value = `Deuda: ${name}`; opt.text = `Deuda: ${name}`; $('selCat').add(opt); $('selCat').value = `Deuda: ${name}`; }
 function deleteDebt(id) { if(!confirm("¿Eliminar registro?")) return; DEBTS = DEBTS.filter(d => d.id !== id); localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); renderDebts(); }
 
-// --- REPORTES REPARADOS (FLUJO DE EFECTIVO) ---
+// --- INIT (CORREGIDO) ---
+async function doLogin() { 
+    const u=$('user').value, p=$('pass').value; 
+    try { 
+        // CORRECCION CRITICA AQUI: user:u, pass:p
+        const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})}); 
+        const d=await r.json(); 
+        if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}
+        else{$('loginError').style.display='block';} 
+    } catch(e){alert("Error de conexión");} 
+}
+function logout(){location.reload();}
+async function loadData(){try{const r=await fetch(`/api/data?user=${CURRENT_USER}`); DATA=await r.json(); renderAll(); populateFilters();}catch(e){console.error(e);}}
+
+function renderAll(){
+    $('btnReportes').style.display='flex'; $('totalPatrimonio').innerText=fmtMoney(DATA.patrimonio);
+    if(IS_ADMIN){
+        $('btnAdmin').style.display='flex'; 
+        $('btnAddCta').style.display='block';
+        $('btnDebts').style.display='flex'; // SOLO ADMIN
+    }else{
+        $('btnAdmin').style.display='none'; 
+        $('btnAddCta').style.display='none';
+        $('btnDebts').style.display='none';
+    }
+    $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
+    $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
+    
+    $('listCuentas').innerHTML=DATA.cuentas.map(c=>`<div class="item-row"><div><span>${c.icono} ${c.nombre}</span> <span style="font-weight:bold;margin-left:10px;">${fmtMoney(c.saldo)}</span></div>${IS_ADMIN?`<div style="display:flex;gap:5px;"><button class="btn-icon edit" onclick="editarCuenta('${c._id}','${c.nombre}')">✏️</button><button class="btn-icon del" onclick="borrarCuenta('${c._id}')">🗑️</button></div>`:''}</div>`).join('');
+    $('gridActivos').innerHTML=DATA.activos.map(a=>`<div class="item-row"><div>${a.icono} ${a.nombre}</div><div style="font-weight:bold;color:${a.balance_total>=0?'var(--green)':'var(--red)'}">${fmtMoney(a.balance_total)}</div></div>`).join('');
+    renderMovs(DATA.movimientos); updateChart(); populateSelects();
+}
+
+function renderMovs(movs) {
+    $('listMovs').innerHTML=movs.map(m=> { 
+        let c='var(--green)'; if(m.tipo==='gasto')c='var(--red)'; if(m.estado!=='finalizado')c='var(--yellow)'; if(m.tipo.includes('traspaso'))c='var(--cyan)'; 
+        let actions = ``;
+        if(IS_ADMIN || m.creado_por === CURRENT_USER) { actions = `<div style="display:flex;gap:5px;margin-top:5px;"><button class="btn-icon edit" onclick='editarMov(${JSON.stringify(m)})'>✏️</button><button class="btn-icon del" onclick="borrarMov('${m._id}')">🗑️</button></div>`; }
+        return `<li style="opacity:${m.estado==='reembolsado'?0.5:1}; padding:10px; border-bottom:1px solid #222;">
+            <div style="display:flex; justify-content:space-between;">
+                <div><span style="display:block;font-size:13px;font-weight:600;">${m.descripcion}</span><span style="font-size:11px;color:#666;">${new Date(m.fecha).toLocaleDateString()} | ${m.categoria||'-'} | ${m.creado_por}</span></div>
+                <span style="font-weight:bold;color:${c}">${fmtMoney(m.monto)}</span>
+            </div>
+            ${actions}
+        </li>` 
+    }).join('');
+}
+function filtrarMovimientos() { const q=$('searchMovs').value.toLowerCase(); renderMovs(DATA.movimientos.filter(m=>m.descripcion.toLowerCase().includes(q)||m.monto.toString().includes(q))); }
+
+// --- REPORTES (CASH FLOW FIX) ---
 function abrirReportes(){
     try {
         $('reporte-overlay').style.display='flex';
@@ -278,9 +325,7 @@ async function actualizarReporte(){
     try {
         const r=await fetch('/api/reporte',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({anio,mes,activo_id,user:CURRENT_USER, cuentas_ids})});
         const rep=await r.json(); 
-        
-        // --- PARCHE DE FLUJO DE EFECTIVO (V30) ---
-        // Recalcular totales sumando TODO lo que hay en la lista (incluyendo traspasos)
+        // CASH FLOW LOGIC V30
         let tIng = 0, tGas = 0;
         if(rep.detalles) {
             rep.detalles.forEach(m => {
@@ -288,11 +333,8 @@ async function actualizarReporte(){
                 else tGas += Math.abs(m.monto);
             });
         }
-        rep.ingresos = tIng;
-        rep.gastos = tGas;
-        rep.neto = tIng - tGas;
-        // ----------------------------------------
-
+        rep.ingresos = tIng; rep.gastos = tGas; rep.neto = tIng - tGas;
+        
         REPORT_CACHE=rep;
         $('repIng').innerText=fmtMoney(rep.ingresos); $('repGas').innerText=fmtMoney(rep.gastos); $('repNeto').innerText=fmtMoney(rep.neto);
         const ctx1=$('chartReporteMain').getContext('2d'); if(repChart1)repChart1.destroy(); 
