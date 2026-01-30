@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v17.0 (Reportes Precisión) Conectado");
+        console.log("✅ ERP v16.0 (Control Total) Conectado");
         inicializarDatos();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -127,7 +127,9 @@ app.delete('/api/usuarios/:id', async (req, res) => { try { await Usuario.findBy
 app.post('/api/categorias', async (req, res) => { try { await Categoria.create(req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); } });
 app.delete('/api/categorias/:id', async (req, res) => { try { await Categoria.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); } });
 
-// --- GESTION DE MOVIMIENTOS ---
+// --- GESTION DE MOVIMIENTOS (CONTROL TOTAL) ---
+
+// 1. CREAR
 app.post('/api/movimiento', async (req, res) => {
     const { descripcion, monto, cuenta_id, activo_id, tipo, estado, categoria, usuario_actual } = req.body;
     let m = Math.abs(monto); if (tipo === 'gasto') m = -m;
@@ -140,34 +142,53 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error" }); } finally { session.endSession(); }
 });
 
+// 2. BORRAR (NUEVO)
 app.delete('/api/movimiento/:id', async (req, res) => {
     const session = await mongoose.startSession(); session.startTransaction();
     try {
         const m = await Movimiento.findById(req.params.id);
         if(!m) throw new Error("No existe");
+        
+        // Revertir saldo (Resta el monto tal cual. Si era -100, hace -(-100) = +100. Si era +100, hace -(100) = -100)
         await Cuenta.findByIdAndUpdate(m.cuenta_id, { $inc: { saldo: -m.monto } }, { session });
         if(m.activo_id) await Activo.findByIdAndUpdate(m.activo_id, { $inc: { balance_total: -m.monto } }, { session });
+        
         await Movimiento.findByIdAndDelete(req.params.id, { session });
         await session.commitTransaction(); res.json({ success: true });
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error borrando" }); } finally { session.endSession(); }
 });
 
+// 3. EDITAR (NUEVO - SOLO DATOS BASICOS, NO CUENTAS PARA EVITAR DESCUADRES)
 app.put('/api/movimiento/:id', async (req, res) => {
-    const { descripcion, categoria, monto, tipo } = req.body; 
+    const { descripcion, categoria, monto, tipo } = req.body; // Solo permitimos editar esto por seguridad
     const session = await mongoose.startSession(); session.startTransaction();
     try {
         const mOriginal = await Movimiento.findById(req.params.id);
+        
+        // 1. Revertir monto original
         await Cuenta.findByIdAndUpdate(mOriginal.cuenta_id, { $inc: { saldo: -mOriginal.monto } }, { session });
         if(mOriginal.activo_id) await Activo.findByIdAndUpdate(mOriginal.activo_id, { $inc: { balance_total: -mOriginal.monto } }, { session });
-        let nuevoMonto = Math.abs(parseFloat(monto)); if (tipo === 'gasto') nuevoMonto = -nuevoMonto;
+
+        // 2. Calcular nuevo monto
+        let nuevoMonto = Math.abs(parseFloat(monto));
+        if (tipo === 'gasto') nuevoMonto = -nuevoMonto;
+
+        // 3. Aplicar nuevo monto
         await Cuenta.findByIdAndUpdate(mOriginal.cuenta_id, { $inc: { saldo: nuevoMonto } }, { session });
         if(mOriginal.activo_id) await Activo.findByIdAndUpdate(mOriginal.activo_id, { $inc: { balance_total: nuevoMonto } }, { session });
-        mOriginal.descripcion = descripcion; mOriginal.categoria = categoria; mOriginal.monto = nuevoMonto; mOriginal.tipo = tipo;
+
+        // 4. Guardar cambios
+        mOriginal.descripcion = descripcion;
+        mOriginal.categoria = categoria;
+        mOriginal.monto = nuevoMonto;
+        mOriginal.tipo = tipo;
         await mOriginal.save({ session });
+
         await session.commitTransaction(); res.json({ success: true });
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error editando" }); } finally { session.endSession(); }
 });
 
+// TRASPASO
 app.post('/api/traspaso', async (req, res) => {
     const { origen_id, destino_id, monto, descripcion, usuario_actual, activo_id } = req.body;
     if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Faltan datos" });
@@ -222,4 +243,4 @@ app.post('/api/reporte', async (req, res) => {
 
 app.post('/api/confirmar-reembolso', async (req, res) => { const { mov_id, usuario_actual } = req.body; const mOrig = await Movimiento.findById(mov_id); const session = await mongoose.startSession(); session.startTransaction(); try { mOrig.estado = 'reembolsado'; await mOrig.save({ session }); const m = Math.abs(mOrig.monto); await Movimiento.create([{ descripcion: "✅ REEMBOLSO: "+mOrig.descripcion, monto: m, cuenta_id: mOrig.cuenta_id, activo_id: mOrig.activo_id, tipo: 'ingreso', categoria: 'Reembolso', estado: 'finalizado', creado_por: usuario_actual }], { session }); await Cuenta.findByIdAndUpdate(mOrig.cuenta_id, { $inc: { saldo: m } }, { session }); await Activo.findByIdAndUpdate(mOrig.activo_id, { $inc: { balance_total: m } }, { session }); await session.commitTransaction(); res.json({ success: true }); } catch (e) { await session.abortTransaction(); res.status(500).json({}); } finally { session.endSession(); } });
 
-app.listen(PORT, () => console.log(`ERP v17.0 Red Expenses en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v16.0 Red Expenses en ${PORT}`));
