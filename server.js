@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ ERP v16.0 (Control Total) Conectado");
+        console.log("✅ ERP v17.0 (Reportes Precisión) Conectado");
         inicializarDatos();
     })
     .catch(err => console.error("❌ Error BD:", err));
@@ -127,9 +127,7 @@ app.delete('/api/usuarios/:id', async (req, res) => { try { await Usuario.findBy
 app.post('/api/categorias', async (req, res) => { try { await Categoria.create(req.body); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); } });
 app.delete('/api/categorias/:id', async (req, res) => { try { await Categoria.findByIdAndDelete(req.params.id); res.json({ok:true}); } catch(e){ res.status(500).json({error:"err"}); } });
 
-// --- GESTION DE MOVIMIENTOS (CONTROL TOTAL) ---
-
-// 1. CREAR
+// --- GESTION DE MOVIMIENTOS ---
 app.post('/api/movimiento', async (req, res) => {
     const { descripcion, monto, cuenta_id, activo_id, tipo, estado, categoria, usuario_actual } = req.body;
     let m = Math.abs(monto); if (tipo === 'gasto') m = -m;
@@ -142,53 +140,34 @@ app.post('/api/movimiento', async (req, res) => {
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error" }); } finally { session.endSession(); }
 });
 
-// 2. BORRAR (NUEVO)
 app.delete('/api/movimiento/:id', async (req, res) => {
     const session = await mongoose.startSession(); session.startTransaction();
     try {
         const m = await Movimiento.findById(req.params.id);
         if(!m) throw new Error("No existe");
-        
-        // Revertir saldo (Resta el monto tal cual. Si era -100, hace -(-100) = +100. Si era +100, hace -(100) = -100)
         await Cuenta.findByIdAndUpdate(m.cuenta_id, { $inc: { saldo: -m.monto } }, { session });
         if(m.activo_id) await Activo.findByIdAndUpdate(m.activo_id, { $inc: { balance_total: -m.monto } }, { session });
-        
         await Movimiento.findByIdAndDelete(req.params.id, { session });
         await session.commitTransaction(); res.json({ success: true });
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error borrando" }); } finally { session.endSession(); }
 });
 
-// 3. EDITAR (NUEVO - SOLO DATOS BASICOS, NO CUENTAS PARA EVITAR DESCUADRES)
 app.put('/api/movimiento/:id', async (req, res) => {
-    const { descripcion, categoria, monto, tipo } = req.body; // Solo permitimos editar esto por seguridad
+    const { descripcion, categoria, monto, tipo } = req.body; 
     const session = await mongoose.startSession(); session.startTransaction();
     try {
         const mOriginal = await Movimiento.findById(req.params.id);
-        
-        // 1. Revertir monto original
         await Cuenta.findByIdAndUpdate(mOriginal.cuenta_id, { $inc: { saldo: -mOriginal.monto } }, { session });
         if(mOriginal.activo_id) await Activo.findByIdAndUpdate(mOriginal.activo_id, { $inc: { balance_total: -mOriginal.monto } }, { session });
-
-        // 2. Calcular nuevo monto
-        let nuevoMonto = Math.abs(parseFloat(monto));
-        if (tipo === 'gasto') nuevoMonto = -nuevoMonto;
-
-        // 3. Aplicar nuevo monto
+        let nuevoMonto = Math.abs(parseFloat(monto)); if (tipo === 'gasto') nuevoMonto = -nuevoMonto;
         await Cuenta.findByIdAndUpdate(mOriginal.cuenta_id, { $inc: { saldo: nuevoMonto } }, { session });
         if(mOriginal.activo_id) await Activo.findByIdAndUpdate(mOriginal.activo_id, { $inc: { balance_total: nuevoMonto } }, { session });
-
-        // 4. Guardar cambios
-        mOriginal.descripcion = descripcion;
-        mOriginal.categoria = categoria;
-        mOriginal.monto = nuevoMonto;
-        mOriginal.tipo = tipo;
+        mOriginal.descripcion = descripcion; mOriginal.categoria = categoria; mOriginal.monto = nuevoMonto; mOriginal.tipo = tipo;
         await mOriginal.save({ session });
-
         await session.commitTransaction(); res.json({ success: true });
     } catch (e) { await session.abortTransaction(); res.status(500).json({ error: "Error editando" }); } finally { session.endSession(); }
 });
 
-// TRASPASO
 app.post('/api/traspaso', async (req, res) => {
     const { origen_id, destino_id, monto, descripcion, usuario_actual, activo_id } = req.body;
     if(!origen_id || !destino_id || !monto) return res.status(400).json({ error: "Faltan datos" });
@@ -207,13 +186,27 @@ app.post('/api/arqueo', async (req, res) => { try { await Arqueo.create(req.body
 app.get('/api/backup', async (req, res) => { try { const u = await Usuario.findOne({ user: req.query.user }); if(!u || !u.es_admin) return res.status(403).json({error:"Solo admin"}); const backup = { usuarios: await Usuario.find(), cuentas: await Cuenta.find(), activos: await Activo.find(), movimientos: await Movimiento.find(), categorias: await Categoria.find(), arqueos: await Arqueo.find(), timestamp: new Date() }; res.json(backup); } catch(e) { res.status(500).json({error:"Error"}); } });
 app.post('/api/restore', async (req, res) => { const { data, user } = req.body; try { const u = await Usuario.findOne({ user }); if(!u || !u.es_admin) return res.status(403).json({error:"Solo admin"}); await Usuario.deleteMany({}); await Cuenta.deleteMany({}); await Activo.deleteMany({}); await Movimiento.deleteMany({}); await Categoria.deleteMany({}); await Arqueo.deleteMany({}); if(data.usuarios) await Usuario.insertMany(data.usuarios); if(data.cuentas) await Cuenta.insertMany(data.cuentas); if(data.activos) await Activo.insertMany(data.activos); if(data.movimientos) await Movimiento.insertMany(data.movimientos); if(data.categorias) await Categoria.insertMany(data.categorias); if(data.arqueos) await Arqueo.insertMany(data.arqueos); res.json({ success: true }); } catch(e) { res.status(500).json({error:"Error"}); } });
 
+// --- REPORTES CON FILTRO MULTI-CUENTA ---
 app.post('/api/reporte', async (req, res) => {
-    const { mes, anio, activo_id, user } = req.body; const u = await Usuario.findOne({ user });
+    const { mes, anio, activo_id, user, cuentas_ids } = req.body; // NUEVO: cuentas_ids array
+    const u = await Usuario.findOne({ user });
     if (!u) return res.status(403).json({ error: "No auto" });
+    
     let filtro = {};
+    
+    // Filtro Fecha
     if (mes !== 'todos') { const start = new Date(anio, parseInt(mes), 1); const end = new Date(anio, parseInt(mes) + 1, 0, 23, 59, 59); filtro.fecha = { $gte: start, $lte: end }; } 
     else { const start = new Date(anio, 0, 1); const end = new Date(anio, 11, 31, 23, 59, 59); filtro.fecha = { $gte: start, $lte: end }; }
-    if (u.es_admin) { if (activo_id !== 'todos') filtro.activo_id = activo_id; } else { if (activo_id !== 'todos') { if (u.proyectos_permitidos.includes(activo_id)) filtro.activo_id = activo_id; else return res.status(403).json({}); } else filtro.activo_id = { $in: u.proyectos_permitidos }; }
+    
+    // Filtro Proyecto
+    if (u.es_admin) { if (activo_id !== 'todos') filtro.activo_id = activo_id; } 
+    else { if (activo_id !== 'todos') { if (u.proyectos_permitidos.includes(activo_id)) filtro.activo_id = activo_id; else return res.status(403).json({}); } else filtro.activo_id = { $in: u.proyectos_permitidos }; }
+
+    // NUEVO: Filtro Cuentas (si vienen seleccionadas)
+    if (cuentas_ids && cuentas_ids.length > 0 && cuentas_ids !== 'todas') {
+        filtro.cuenta_id = { $in: cuentas_ids };
+    }
+
     try {
         const movs = await Movimiento.find(filtro).sort({ fecha: 1 }).populate('activo_id', 'nombre').populate('cuenta_id', 'nombre');
         let ingresos=0, gastos=0, catGastos = {};
@@ -229,4 +222,4 @@ app.post('/api/reporte', async (req, res) => {
 
 app.post('/api/confirmar-reembolso', async (req, res) => { const { mov_id, usuario_actual } = req.body; const mOrig = await Movimiento.findById(mov_id); const session = await mongoose.startSession(); session.startTransaction(); try { mOrig.estado = 'reembolsado'; await mOrig.save({ session }); const m = Math.abs(mOrig.monto); await Movimiento.create([{ descripcion: "✅ REEMBOLSO: "+mOrig.descripcion, monto: m, cuenta_id: mOrig.cuenta_id, activo_id: mOrig.activo_id, tipo: 'ingreso', categoria: 'Reembolso', estado: 'finalizado', creado_por: usuario_actual }], { session }); await Cuenta.findByIdAndUpdate(mOrig.cuenta_id, { $inc: { saldo: m } }, { session }); await Activo.findByIdAndUpdate(mOrig.activo_id, { $inc: { balance_total: m } }, { session }); await session.commitTransaction(); res.json({ success: true }); } catch (e) { await session.abortTransaction(); res.status(500).json({}); } finally { session.endSession(); } });
 
-app.listen(PORT, () => console.log(`ERP v16.0 Full Control en ${PORT}`));
+app.listen(PORT, () => console.log(`ERP v17.0 Red Expenses en ${PORT}`));
