@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V26 Deudas</title>
+<title>ERP CTRFAM | Elite V27</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -49,6 +49,8 @@
 
     .btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:8px; color:white; text-transform:uppercase; letter-spacing:0.5px; justify-content:center; transition:0.2s; }
     .btn:hover { transform:translateY(-1px); filter:brightness(1.2); }
+    
+    /* MICRO BOTONES */
     .btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; display: flex; justify-content: center; align-items: center; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: rgba(255,255,255,0.05); color: #fff; }
     .btn-icon:hover { transform: scale(1.05); }
     .btn-icon.edit:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--blue); color: var(--blue); }
@@ -67,7 +69,7 @@
     .item-row:hover { background:rgba(255,255,255,0.03); }
     .flex-row { display:flex; gap:10px; }
     
-    /* PROGRESS BAR PARA DEUDAS */
+    /* DEUDAS */
     .progress-track { width: 100%; background: #222; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--blue); transition: width 0.5s ease; }
     
@@ -188,7 +190,6 @@
 <div id="debts-overlay" class="overlay">
     <div class="box-sm">
         <h2 style="margin-bottom:20px;color:var(--orange);">📉 Pasivos & Deudas</h2>
-        
         <div style="background:#151515; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #333;">
             <label style="font-size:11px;color:var(--muted);">Nueva Deuda / Crédito</label>
             <div class="flex-row">
@@ -197,10 +198,7 @@
             </div>
             <button class="btn bg-green" style="width:100%; justify-content:center;" onclick="addDebt()">+ CREAR PASIVO</button>
         </div>
-
-        <div id="debtsList" class="item-list" style="max-height:300px;">
-            </div>
-
+        <div id="debtsList" class="item-list" style="max-height:300px;"></div>
         <button class="btn bg-red" style="width:100%; margin-top:20px;" onclick="document.getElementById('debts-overlay').style.display='none'">CERRAR</button>
     </div>
 </div>
@@ -213,7 +211,7 @@
 <div class="top-bar">
     <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Patrimonio Total</div><div class="big-number" id="totalPatrimonio">---</div></div>
     <div style="display:flex;gap:10px;">
-        <button class="btn bg-orange" onclick="openDebts()">📉 DEUDAS</button> <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
+        <button class="btn bg-orange" id="btnDebts" style="display:none;" onclick="openDebts()">📉 DEUDAS</button> <button class="btn bg-purple" onclick="abrirCatsUser()">🏷️ CAT</button>
         <button class="btn bg-cyan" onclick="abrirTraspaso()">⇄ TRASPASO</button>
         <button class="btn bg-gold" id="btnReportes" style="display:none;" onclick="abrirReportes()">📊 REPORTES</button>
         <button class="btn bg-blue" id="btnAdmin" style="display:none;" onclick="abrirAdmin()">⚙️ ADMIN</button>
@@ -235,83 +233,52 @@ let DATA = { cuentas:[], activos:[], movimientos:[], pendientes:[], categorias:[
 let CURRENT_USER = ''; let IS_ADMIN = false; let currentTipo = 'ingreso'; let chartRef, repChart1, repChart2; let REPORT_CACHE = null; let ALL_USERS=[];
 const fmtMoney=n=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n);
 
-// --- DEBTS LOGIC (NUEVO GESTOR DE PASIVOS) ---
+// --- DEBTS LOGIC ---
 let DEBTS = JSON.parse(localStorage.getItem('erp_debts')) || [];
-
-function openDebts() {
-    $('debts-overlay').style.display='flex';
-    renderDebts();
-}
-
+function openDebts() { $('debts-overlay').style.display='flex'; renderDebts(); }
 function addDebt() {
-    const name = $('debtName').value;
-    const amount = parseFloat($('debtAmount').value);
+    const name = $('debtName').value; const amount = parseFloat($('debtAmount').value);
     if(!name || !amount) return alert("Completa los datos");
-    
     DEBTS.push({ id: Date.now(), name: name, total: amount, start: new Date().toISOString() });
-    localStorage.setItem('erp_debts', JSON.stringify(DEBTS));
-    $('debtName').value=''; $('debtAmount').value='';
-    renderDebts();
+    localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); $('debtName').value=''; $('debtAmount').value=''; renderDebts();
 }
-
 function renderDebts() {
     $('debtsList').innerHTML = DEBTS.map(d => {
-        // Calcular abonado sumando gastos con categoria "Deuda: [Nombre]"
-        const abonado = DATA.movimientos
-            .filter(m => m.categoria === `Deuda: ${d.name}` && m.tipo === 'gasto')
-            .reduce((sum, m) => sum + Math.abs(m.monto), 0);
-        
+        const abonado = DATA.movimientos.filter(m => m.categoria === `Deuda: ${d.name}` && m.tipo === 'gasto').reduce((sum, m) => sum + Math.abs(m.monto), 0);
         const restante = d.total - abonado;
         const progress = Math.min((abonado / d.total) * 100, 100);
         const isPaid = restante <= 0;
-
-        return `
-        <div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <span style="font-weight:bold; color:#fff;">${d.name}</span>
-                <span style="font-size:12px; color:${isPaid?'var(--green)':'var(--orange)'}">${isPaid ? 'PAGADO' : 'PENDIENTE'}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
-                <span>Abonado: ${fmtMoney(abonado)}</span>
-                <span>Total: ${fmtMoney(d.total)}</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" style="width:${progress}%; background:${isPaid?'var(--green)':'var(--blue)'}"></div></div>
-            ${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d.name}')">ABONAR A CAPITAL</button>` : ''}
-            <button class="btn-icon del" style="position:absolute; margin-top:-70px; right:35px;" onclick="deleteDebt(${d.id})">🗑️</button>
-        </div>`;
+        return `<div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #333;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-weight:bold; color:#fff;">${d.name}</span><span style="font-size:12px; color:${isPaid?'var(--green)':'var(--orange)'}">${isPaid ? 'PAGADO' : 'PENDIENTE'}</span></div><div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;"><span>Abonado: ${fmtMoney(abonado)}</span><span>Total: ${fmtMoney(d.total)}</span></div><div class="progress-track"><div class="progress-fill" style="width:${progress}%; background:${isPaid?'var(--green)':'var(--blue)'}"></div></div>${!isPaid ? `<button class="btn bg-blue btn-small" style="width:100%; margin-top:10px; justify-content:center;" onclick="payDebt('${d.name}')">ABONAR A CAPITAL</button>` : ''}<button class="btn-icon del" style="position:absolute; margin-top:-70px; right:35px;" onclick="deleteDebt(${d.id})">🗑️</button></div>`;
     }).join('');
 }
-
-function payDebt(name) {
-    $('debts-overlay').style.display='none';
-    openModal('gasto');
-    $('desc').value = `Abono a ${name}`;
-    // Forzar categoria manual aunque no exista en BD (truco visual)
-    const opt = document.createElement('option');
-    opt.value = `Deuda: ${name}`;
-    opt.text = `Deuda: ${name}`;
-    $('selCat').add(opt);
-    $('selCat').value = `Deuda: ${name}`;
-}
-
-function deleteDebt(id) {
-    if(!confirm("¿Eliminar registro de deuda? (No borra los pagos realizados)")) return;
-    DEBTS = DEBTS.filter(d => d.id !== id);
-    localStorage.setItem('erp_debts', JSON.stringify(DEBTS));
-    renderDebts();
-}
+function payDebt(name) { $('debts-overlay').style.display='none'; openModal('gasto'); $('desc').value = `Abono a ${name}`; const opt = document.createElement('option'); opt.value = `Deuda: ${name}`; opt.text = `Deuda: ${name}`; $('selCat').add(opt); $('selCat').value = `Deuda: ${name}`; }
+function deleteDebt(id) { if(!confirm("¿Eliminar registro?")) return; DEBTS = DEBTS.filter(d => d.id !== id); localStorage.setItem('erp_debts', JSON.stringify(DEBTS)); renderDebts(); }
 
 // --- INIT ---
 async function doLogin() { 
     const u=$('user').value, p=$('pass').value; 
-    try { const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})}); const d=await r.json(); if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}else{$('loginError').style.display='block';} }catch(e){alert("Error");} 
+    try { 
+        // CORREGIDO: JSON.stringify({user:u, pass:p})
+        const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})}); 
+        const d=await r.json(); 
+        if(d.success){CURRENT_USER=d.user;IS_ADMIN=d.es_admin;$('login-overlay').style.display='none';loadData();}
+        else{$('loginError').style.display='block';} 
+    } catch(e){alert("Error de conexión");} 
 }
 function logout(){location.reload();}
 async function loadData(){try{const r=await fetch(`/api/data?user=${CURRENT_USER}`); DATA=await r.json(); renderAll(); populateFilters();}catch(e){console.error(e);}}
 
 function renderAll(){
     $('btnReportes').style.display='flex'; $('totalPatrimonio').innerText=fmtMoney(DATA.patrimonio);
-    if(IS_ADMIN){$('btnAdmin').style.display='flex';$('btnAddCta').style.display='block';}else{$('btnAdmin').style.display='none';$('btnAddCta').style.display='none';}
+    if(IS_ADMIN){
+        $('btnAdmin').style.display='flex'; 
+        $('btnAddCta').style.display='block';
+        $('btnDebts').style.display='flex'; // SOLO ADMIN VE DEUDAS
+    }else{
+        $('btnAdmin').style.display='none'; 
+        $('btnAddCta').style.display='none';
+        $('btnDebts').style.display='none';
+    }
     $('radar-alertas').innerHTML=DATA.pendientes.map(m=>`<div style="background:rgba(255,215,0,0.1);border:1px solid var(--yellow);padding:10px;border-radius:8px;display:flex;justify-content:space-between;color:var(--yellow);align-items:center;"><div><strong>⚠️ REEMBOLSO: ${fmtMoney(Math.abs(m.monto))}</strong><br><span style="font-size:11px;">${m.descripcion}</span></div><button class="btn bg-green btn-small" onclick="confirmarReembolso('${m._id}')">✅</button></div>`).join('');
     $('radar-alertas').style.display = DATA.pendientes.length ? 'flex' : 'none';
     
