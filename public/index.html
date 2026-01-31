@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ERP CTRFAM | V40 Resurrección</title>
+<title>ERP CTRFAM | V41 Full Safe</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -458,6 +458,50 @@ function editarMov(id) {
 }
 function closeModal(){$('modal').style.display='none';}
 async function confirmarReembolso(id){if(!confirm("?"))return;await fetch('/api/confirmar-reembolso',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mov_id:id,usuario_actual:CURRENT_USER})});loadData();}
+// CORTE DE CAJA FULL (EXPANDED V41)
+async function imprimirArqueo(){
+    try {
+        let total=0, items=[];
+        // 1. Gather Data
+        document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{ 
+            const v=parseFloat(k.value); 
+            total+=v; 
+            items.push({n:k.dataset.n, s:v}); 
+        });
+        
+        if(items.length===0) return alert("Por favor, selecciona al menos una cuenta para el corte.");
+
+        // 2. Generate HTML
+        const rows = items.map(i=>`<tr><td>${i.n}</td><td class="text-right">${fmtMoney(i.s)}</td></tr>`).join('');
+        const h=`
+            <div class="print-header">
+                <div class="print-logo">CORTE DE CAJA</div>
+                <p>${CURRENT_USER} | ${new Date().toLocaleString()}</p>
+            </div>
+            <table class="print-table">
+                <thead><tr><th>CUENTA / CAJA</th><th class="text-right">SALDO</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <h2 style="text-align:right; margin-top:20px;">TOTAL: ${fmtMoney(total)}</h2>
+            <br><br><br>
+            <div style="border-top:1px solid #000; width:200px; margin:50px auto; text-align:center;">Firma Responsable</div>
+        `;
+
+        // 3. Print FIRST (Priority)
+        imprimirHTML(h);
+
+        // 4. Save to Backend (Background)
+        await fetch('/api/arqueo',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({usuario:CURRENT_USER, total, detalles:items.map(i=>({cuenta:i.n, saldo:i.s}))})
+        });
+
+    } catch (e) {
+        console.error("Error en corte:", e);
+        alert("Error al generar el corte: " + e.message);
+    }
+}
 function abrirArqueo(){$('arqueo-overlay').style.display='flex';$('listaArqueo').innerHTML=(DATA.cuentas||[]).map(c=>`<div class="item-row"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;"><input type="checkbox" class="chk-arqueo" value="${c.saldo}" data-n="${c.nombre}" onchange="calcArq()"> ${c.nombre}</label> <strong>${fmtMoney(c.saldo)}</strong></div>`).join('');calcArq();}
 function calcArq(){let t=0;document.querySelectorAll('.chk-arqueo:checked').forEach(k=>{t+=parseFloat(k.value)});$('totalArqueo').innerText=fmtMoney(t);}
 function abrirTraspaso(){$('traspaso-overlay').style.display='flex';const o=(DATA.cuentas||[]).map(c=>`<option value="${c._id}">${c.nombre}</option>`).join('');$('trasOrigen').innerHTML=o;$('trasDestino').innerHTML=o;$('trasProyecto').innerHTML=(DATA.activos||[]).map(a=>`<option value="${a._id}">${a.nombre}</option>`).join('');}
